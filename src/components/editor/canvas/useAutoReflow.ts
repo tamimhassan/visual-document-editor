@@ -1,29 +1,11 @@
-"use client";
+'use client';
 
-import type { RefObject } from "react";
-import { useEffect } from "react";
+import type { RefObject } from 'react';
+import { useEffect } from 'react';
 
-import type { PageLayoutEntry, TableBlock } from "@/lib/types";
-import { useEditorStore, type EditorState } from "@/store/editorStore";
-import { SHEET_MIN_HEIGHT, SHEET_PADDING } from "./CanvasSheet";
-
-/**
- * Automatic A4 pagination.
- *
- * When a page's content grows past the sheet's printable height, the trailing
- * content flows onto the next page — appending a page when none exists. Tables
- * taller than the remaining space are split at a row boundary: the head stays,
- * and the tail becomes a continuation table on the next page (cloned by the
- * store, numbering continued). The reflow is overflow-only by design: it never
- * pulls content back onto earlier pages and never drops pages, so a manually
- * added page keeps its meaning as a deliberate break.
- *
- * Block heights cannot be known from the model (text wraps, tables grow), so
- * the planner measures the rendered canvas: blocks that share a top edge form
- * one flex line ("row"), and lines move wholesale unless a line holds exactly
- * one splittable table. Used only by the edit canvas; preview and the PDF
- * export root simply render the reflowed pages.
- */
+import type { PageLayoutEntry, TableBlock } from '@/lib/types';
+import { useEditorStore, type EditorState } from '@/store/editorStore';
+import { SHEET_MIN_HEIGHT, SHEET_PADDING } from './CanvasSheet';
 
 /** Wait for the typing/layout to settle before moving content between pages. */
 const REFLOW_DELAY_MS = 400;
@@ -66,7 +48,7 @@ function measureItems(
   const sheetRect = sheet.getBoundingClientRect();
   const sheetTop = sheetRect.top;
   const nodes = Array.from(
-    sheet.querySelectorAll<HTMLElement>("[data-block-id]"),
+    sheet.querySelectorAll<HTMLElement>('[data-block-id]'),
   );
   const items: PlannedItem[] = [];
 
@@ -104,8 +86,12 @@ function measureItems(
     const blockId = first?.dataset.blockId;
     if (line.nodes.length === 1 && blockId && tables.has(blockId) && first) {
       const block = tables.get(blockId);
-      const rows = Array.from(first.querySelectorAll<HTMLElement>("tbody tr"));
-      if (block && block.rows.length >= 2 && rows.length === block.rows.length) {
+      const rows = Array.from(first.querySelectorAll<HTMLElement>('tbody tr'));
+      if (
+        block &&
+        block.rows.length >= 2 &&
+        rows.length === block.rows.length
+      ) {
         const rowHeights: number[] = [];
         let firstTop = Infinity;
         let lastBottom = -Infinity;
@@ -182,10 +168,7 @@ function planPage(items: PlannedItem[]): {
       let used = 0;
       for (let row = 0; row < table.rowIds.length - 1; row += 1) {
         const height = table.rowHeights[row] ?? 0;
-        if (
-          table.chromeTop + used + height + table.chromeBottom <=
-          available
-        ) {
+        if (table.chromeTop + used + height + table.chromeBottom <= available) {
           used += height;
           kept = row + 1;
         } else {
@@ -246,11 +229,13 @@ function layoutSignature(pages: PageLayoutEntry[][]): string {
     .map((page) =>
       page
         .map((entry) =>
-          entry.rowIds ? `${entry.blockId}:${entry.rowIds.length}` : entry.blockId,
+          entry.rowIds
+            ? `${entry.blockId}:${entry.rowIds.length}`
+            : entry.blockId,
         )
-        .join("|"),
+        .join('|'),
     )
-    .join("/");
+    .join('/');
 }
 
 export function useAutoReflow(
@@ -272,7 +257,7 @@ export function useAutoReflow(
       if (!tab) return;
 
       const sheets = Array.from(
-        stack.querySelectorAll<HTMLElement>("[data-pdf-page]"),
+        stack.querySelectorAll<HTMLElement>('[data-pdf-page]'),
       );
       if (sheets.length !== tab.document.pages.length) return;
 
@@ -283,8 +268,8 @@ export function useAutoReflow(
       const holdsCaret =
         focused instanceof HTMLElement &&
         stack.contains(focused) &&
-        (focused.tagName === "INPUT" ||
-          focused.tagName === "TEXTAREA" ||
+        (focused.tagName === 'INPUT' ||
+          focused.tagName === 'TEXTAREA' ||
           focused.isContentEditable);
       if (holdsCaret) {
         window.setTimeout(attempt, FOCUS_RETRY_MS);
@@ -296,7 +281,7 @@ export function useAutoReflow(
       const tables = new Map<string, TableBlock>();
       for (const page of tab.document.pages) {
         for (const block of page.blocks) {
-          if (block.kind === "table") tables.set(block.id, block);
+          if (block.kind === 'table') tables.set(block.id, block);
         }
       }
       const fullRowIds = (blockId: string): string[] =>
@@ -307,10 +292,7 @@ export function useAutoReflow(
       let carried: PlannedItem[] = [];
 
       for (const sheet of sheets) {
-        const items = [
-          ...carried,
-          ...measureItems(sheet, scale, tables),
-        ];
+        const items = [...carried, ...measureItems(sheet, scale, tables)];
         const planned = planPage(items);
         layouts.push(planned.entries);
         carried = planned.rest;
@@ -334,7 +316,7 @@ export function useAutoReflow(
 
       const current = tab.document.pages.map((page) =>
         page.blocks.map((block) =>
-          block.kind === "table"
+          block.kind === 'table'
             ? { blockId: block.id, rowIds: block.rows.map((row) => row.id) }
             : { blockId: block.id },
         ),

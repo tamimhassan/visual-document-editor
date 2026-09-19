@@ -1,24 +1,28 @@
-"use client";
+'use client';
 
-import { RotateCcw, Type } from "lucide-react";
+import { RotateCcw, Type } from 'lucide-react';
 
-import { ColorField } from "@/components/ui/ColorField";
-import { Field, PanelSection } from "@/components/ui/Field";
-import { NumberField } from "@/components/ui/NumberField";
-import { SelectField } from "@/components/ui/SelectField";
-import { ALIGNMENTS, FAMILY_OPTIONS, WEIGHT_OPTIONS } from "@/components/ui/Typography";
+import { ColorField } from '@/components/ui/ColorField';
+import { Field, PanelSection } from '@/components/ui/Field';
+import { NumberField } from '@/components/ui/NumberField';
+import { SelectField } from '@/components/ui/SelectField';
+import {
+  ALIGNMENTS,
+  FAMILY_OPTIONS,
+  WEIGHT_OPTIONS,
+} from '@/components/ui/Typography';
 import {
   FONT_STACKS,
   type CellStyleOverride,
   type FontFamilyId,
   type FontWeight,
-} from "@/lib/types";
-import { useEditorStore } from "@/store/editorStore";
+} from '@/lib/types';
+import { useEditorStore } from '@/store/editorStore';
 import {
   useCellStyleOverride,
   useTableColumn,
   useTableStyle,
-} from "@/store/selectors";
+} from '@/store/selectors';
 
 function ResetButton({
   label,
@@ -32,8 +36,7 @@ function ResetButton({
       type="button"
       aria-label={label}
       title="Reset to inherited"
-      className="flex h-9 w-8 shrink-0 items-center justify-center rounded-lg border border-line
-                 bg-white text-ink-400 transition hover:text-brand-600"
+      className="flex h-9 w-8 shrink-0 items-center justify-center rounded-lg border border-line  bg-white text-ink-400 transition hover:text-brand-600"
       onClick={onClick}
     >
       <RotateCcw size={13} />
@@ -41,13 +44,6 @@ function ResetButton({
   );
 }
 
-/**
- * Nested-focus panel for one table cell. Every control shows the EFFECTIVE
- * value (sparse override → column alignment → table style → hardcoded
- * defaults, the same cascade TableRowView renders), and a reset button
- * appears while a field is overridden — clearing it deletes the override key
- * so the cell inherits again.
- */
 export function CellTextSettings({
   blockId,
   rowId,
@@ -65,11 +61,11 @@ export function CellTextSettings({
   if (!style) return null;
 
   const effective = {
-    fontFamily: override?.fontFamily ?? style.fontFamily ?? "inter",
+    fontFamily: override?.fontFamily ?? style.fontFamily ?? 'inter',
     fontSize: override?.fontSize ?? style.fontSize,
-    fontWeight: override?.fontWeight ?? style.fontWeight ?? "400",
-    color: override?.color ?? style.cellColor ?? "#1F2937",
-    align: override?.align ?? column?.align ?? "left",
+    fontWeight: override?.fontWeight ?? style.fontWeight ?? '400',
+    color: override?.color ?? style.cellColor ?? '#1F2937',
+    align: override?.align ?? column?.align ?? 'left',
   };
 
   const set = (patch: CellStyleOverride): void =>
@@ -94,7 +90,10 @@ export function CellTextSettings({
               />
             </div>
             {override?.fontFamily !== undefined ? (
-              <ResetButton label="Reset font family" onClick={() => reset("fontFamily")} />
+              <ResetButton
+                label="Reset font family"
+                onClick={() => reset('fontFamily')}
+              />
             ) : null}
           </div>
         </Field>
@@ -111,7 +110,10 @@ export function CellTextSettings({
               />
             </div>
             {override?.fontSize !== undefined ? (
-              <ResetButton label="Reset font size" onClick={() => reset("fontSize")} />
+              <ResetButton
+                label="Reset font size"
+                onClick={() => reset('fontSize')}
+              />
             ) : null}
           </div>
         </Field>
@@ -126,7 +128,10 @@ export function CellTextSettings({
               />
             </div>
             {override?.fontWeight !== undefined ? (
-              <ResetButton label="Reset font weight" onClick={() => reset("fontWeight")} />
+              <ResetButton
+                label="Reset font weight"
+                onClick={() => reset('fontWeight')}
+              />
             ) : null}
           </div>
         </Field>
@@ -140,7 +145,10 @@ export function CellTextSettings({
               />
             </div>
             {override?.color !== undefined ? (
-              <ResetButton label="Reset text color" onClick={() => reset("color")} />
+              <ResetButton
+                label="Reset text color"
+                onClick={() => reset('color')}
+              />
             ) : null}
           </div>
         </Field>
@@ -156,13 +164,11 @@ export function CellTextSettings({
                 type="button"
                 aria-label={`Align cell ${option.value}`}
                 aria-pressed={effective.align === option.value}
-                className={`flex h-9 w-11 items-center justify-center transition
-                  ${index > 0 ? "border-l border-line" : ""}
-                  ${
-                    effective.align === option.value
-                      ? "bg-brand-50 text-brand-700"
-                      : "bg-white text-ink-400 hover:text-ink-800"
-                  }`}
+                className={`flex h-9 w-11 items-center justify-center transition ${index > 0 ? 'border-l border-line' : ''} ${
+                  effective.align === option.value
+                    ? 'bg-brand-50 text-brand-700'
+                    : 'bg-white text-ink-400 hover:text-ink-800'
+                }`}
                 onClick={() => set({ align: option.value })}
               >
                 {option.icon}
@@ -170,14 +176,18 @@ export function CellTextSettings({
             ))}
           </div>
           {override?.align !== undefined ? (
-            <ResetButton label="Reset alignment" onClick={() => reset("align")} />
+            <ResetButton
+              label="Reset alignment"
+              onClick={() => reset('align')}
+            />
           ) : null}
         </div>
       </div>
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
-        Applies to the “{column?.label ?? "cell"}” cell only — other cells keep
-        inheriting the table defaults. {override ? "A ↺ resets a field to inherited." : ""}
+        Applies to the “{column?.label ?? 'cell'}” cell only — other cells keep
+        inheriting the table defaults.{' '}
+        {override ? 'A ↺ resets a field to inherited.' : ''}
       </p>
     </PanelSection>
   );

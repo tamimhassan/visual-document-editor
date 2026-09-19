@@ -59,7 +59,7 @@ canvas only — never in preview or the PDF.
 **Automatic A4 pagination** — content that outgrows a page flows onto the
 next one, appending pages as needed. Oversized tables are split at a row
 boundary: the tail becomes a continuation table on the next page with
-continued row numbering. The reflow is *overflow-only*: it never pulls
+continued row numbering. The reflow is _overflow-only_: it never pulls
 content back onto earlier pages and never removes pages, so a manually added
 page keeps its meaning as a deliberate break. It runs from DOM measurements
 (a debounced pass after edits settle), so undo history stays clean.
@@ -110,7 +110,7 @@ changes only that row's `cells` object. The result:
   node holding the caret;
 - handlers call `useEditorStore.getState()` instead of taking callback props, so
   memoised children keep stable props;
-- page thumbnails paint a schematic from block *kinds* rather than cloning the
+- page thumbnails paint a schematic from block _kinds_ rather than cloning the
   canvas, so they don't repaint while you type;
 - switching tabs swaps one subtree; the canvas itself is keyed by page.
 

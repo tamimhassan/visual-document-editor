@@ -1,26 +1,20 @@
-import type { SavedTemplate } from "@/lib/types";
+import type { SavedTemplate } from '@/lib/types';
 
-const STORAGE_KEY = "vde.templates.v1";
-
-/**
- * Templates live in localStorage so the PoC survives a reload with no backend.
- * Every read is defensive: a corrupted or hand-edited value must not break
- * the editor, it should fall back to "no saved templates".
- */
+const STORAGE_KEY = 'vde.templates';
 
 function isBrowser(): boolean {
-  return typeof window !== "undefined" && typeof localStorage !== "undefined";
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 }
 
 function isSavedTemplate(value: unknown): value is SavedTemplate {
-  if (typeof value !== "object" || value === null) return false;
+  if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Partial<SavedTemplate>;
   return (
-    typeof candidate.id === "string" &&
-    typeof candidate.name === "string" &&
-    typeof candidate.createdAt === "string" &&
-    typeof candidate.updatedAt === "string" &&
-    typeof candidate.document === "object" &&
+    typeof candidate.id === 'string' &&
+    typeof candidate.name === 'string' &&
+    typeof candidate.createdAt === 'string' &&
+    typeof candidate.updatedAt === 'string' &&
+    typeof candidate.document === 'object' &&
     candidate.document !== null &&
     Array.isArray(candidate.document.pages)
   );
@@ -52,7 +46,7 @@ export function writeTemplates(templates: SavedTemplate[]): void {
   }
 }
 
-/** The template the editor should open with, i.e. the most recently saved one. */
+/** The template the editor should open with, the most recently saved one. */
 export function pickTemplateToRestore(
   templates: SavedTemplate[],
 ): SavedTemplate | null {
@@ -71,8 +65,8 @@ export function formatTimestamp(iso: string): string {
 
   const day = date.toISOString().slice(0, 10);
   const time = date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
+    hour: 'numeric',
+    minute: '2-digit',
   });
 
   return `${day}  |  ${time}`;

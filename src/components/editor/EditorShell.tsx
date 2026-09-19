@@ -1,16 +1,16 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
-import { useEditorStore } from "@/store/editorStore";
-import { CanvasStage } from "./CanvasStage";
-import { PdfExportRoot } from "./canvas/PdfExportRoot";
-import { PreviewDialog } from "./PreviewDialog";
-import { PropertiesPanel } from "./properties/PropertiesPanel";
-import { SavedTemplatesPanel } from "./templates/SavedTemplatesPanel";
-import { TabBar } from "./TabBar";
-import { Toolbox } from "./Toolbox";
-import { TopBar } from "./TopBar";
+import { useEditorStore } from '@/store/editorStore';
+import { CanvasStage } from './CanvasStage';
+import { PdfExportRoot } from './canvas/PdfExportRoot';
+import { PreviewDialog } from './PreviewDialog';
+import { PropertiesPanel } from './properties/PropertiesPanel';
+import { SavedTemplatesPanel } from './templates/SavedTemplatesPanel';
+import { TabBar } from './TabBar';
+import { Toolbox } from './Toolbox';
+import { TopBar } from './TopBar';
 
 export function EditorShell() {
   // The export surface mounts only while a PDF export is running: a permanently
@@ -29,19 +29,19 @@ export function EditorShell() {
       if (!modifier) return;
 
       const key = event.key.toLowerCase();
-      if (key === "z") {
+      if (key === 'z') {
         event.preventDefault();
         if (event.shiftKey) useEditorStore.getState().redo();
         else useEditorStore.getState().undo();
       }
-      if (key === "s") {
+      if (key === 's') {
         event.preventDefault();
         useEditorStore.getState().saveActiveTab();
       }
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   return (

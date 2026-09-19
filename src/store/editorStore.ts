@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { current, isDraft, original } from "immer";
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
+import { current, isDraft, original } from 'immer';
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
 
-import { clone } from "@/lib/clone";
+import { clone } from '@/lib/clone';
 import {
   createDefaultDocument,
   createEmptyPage,
@@ -12,13 +12,13 @@ import {
   createShapeBlock,
   createTableBlock,
   createTextBlock,
-} from "@/lib/defaultTemplate";
-import { createId } from "@/lib/ids";
+} from '@/lib/defaultTemplate';
+import { createId } from '@/lib/ids';
 import {
   pickTemplateToRestore,
   readTemplates,
   writeTemplates,
-} from "@/lib/storage";
+} from '@/lib/storage';
 import type {
   Block,
   BlockKind,
@@ -34,7 +34,7 @@ import type {
   TextAlign,
   TextBlock,
   TextStyle,
-} from "@/lib/types";
+} from '@/lib/types';
 
 const HISTORY_LIMIT = 60;
 
@@ -59,15 +59,7 @@ export interface EditorState {
   addPage: () => void;
   setActivePage: (pageId: string) => void;
   removePage: (pageId: string) => void;
-  /**
-   * Rebuild the pages of the active tab from ordered placement entries (used by
-   * the automatic A4 overflow reflow). Existing page ids are reused in order;
-   * new entries get fresh pages. A table that appears with `rowIds` subsets
-   * is split: the first entry keeps the original block, later entries become
-   * cloned continuation tables with continued row numbering. Marks the tab
-   * dirty but takes no undo snapshot, because the layout is derived from
-   * measurements.
-   */
+
   applyPageLayout: (layouts: PageLayoutEntry[][]) => void;
 
   addBlock: (kind: BlockKind) => void;
@@ -76,7 +68,7 @@ export interface EditorState {
   moveBlock: (activeId: string, overId: string) => void;
   updateBlockLayout: (
     blockId: string,
-    patch: Partial<Pick<Block, "widthPercent" | "indentLeft" | "marginBottom">>,
+    patch: Partial<Pick<Block, 'widthPercent' | 'indentLeft' | 'marginBottom'>>,
   ) => void;
 
   updateTextContent: (blockId: string, content: string) => void;
@@ -144,11 +136,11 @@ function createTab(document: DocumentModel, title: string): Tab {
   const firstPage = document.pages[0];
 
   return {
-    id: createId("tab"),
+    id: createId('tab'),
     title,
     templateId: null,
     document,
-    activePageId: firstPage ? firstPage.id : "",
+    activePageId: firstPage ? firstPage.id : '',
     selection: { blockId: null, rowId: null, columnId: null },
     past: [],
     future: [],
@@ -156,7 +148,7 @@ function createTab(document: DocumentModel, title: string): Tab {
   };
 }
 
-const INITIAL_TAB = createTab(createDefaultDocument(), "New-Template");
+const INITIAL_TAB = createTab(createDefaultDocument(), 'New-Template');
 
 type Draft = EditorState;
 
@@ -178,12 +170,12 @@ function getBlock(tab: Tab, blockId: string): Block | undefined {
 
 function getTextBlock(tab: Tab, blockId: string): TextBlock | undefined {
   const block = getBlock(tab, blockId);
-  return block && block.kind === "text" ? block : undefined;
+  return block && block.kind === 'text' ? block : undefined;
 }
 
 function getTableBlock(tab: Tab, blockId: string): TableBlock | undefined {
   const block = getBlock(tab, blockId);
-  return block && block.kind === "table" ? block : undefined;
+  return block && block.kind === 'table' ? block : undefined;
 }
 
 function snapshot(tab: Tab): void {
@@ -246,13 +238,13 @@ function nextTemplateName(templates: SavedTemplate[]): string {
 
 function newBlock(kind: BlockKind): Block {
   switch (kind) {
-    case "text":
+    case 'text':
       return createTextBlock();
-    case "table":
+    case 'table':
       return createTableBlock();
-    case "image":
+    case 'image':
       return createImageBlock();
-    case "shape":
+    case 'shape':
       return createShapeBlock();
   }
 }
@@ -285,7 +277,7 @@ export const useEditorStore = create<EditorState>()(
         tab.document = clone(restored.document);
         tab.templateId = restored.id;
         tab.title = restored.name;
-        tab.activePageId = restored.document.pages[0]?.id ?? "";
+        tab.activePageId = restored.document.pages[0]?.id ?? '';
         tab.past = [];
         tab.future = [];
         tab.dirty = false;
@@ -295,7 +287,7 @@ export const useEditorStore = create<EditorState>()(
       set((state) => {
         // Unsaved tabs default to "New-Template"; extra ones number off it so
         // two "+" clicks never produce indistinguishable tabs.
-        const base = "New-Template";
+        const base = 'New-Template';
         let title = base;
         let n = 2;
         while (
@@ -365,7 +357,7 @@ export const useEditorStore = create<EditorState>()(
           (page) => page.id !== pageId,
         );
         if (tab.activePageId === pageId) {
-          tab.activePageId = tab.document.pages[0]?.id ?? "";
+          tab.activePageId = tab.document.pages[0]?.id ?? '';
         }
       }),
 
@@ -404,7 +396,7 @@ export const useEditorStore = create<EditorState>()(
 
             const tableRows = (ids: readonly string[]): TableRow[] => {
               const original = snapshotOf(source);
-              if (original.kind !== "table") return [];
+              if (original.kind !== 'table') return [];
               const rows: TableRow[] = [];
               for (const rowId of ids) {
                 const row = original.rows.find((item) => item.id === rowId);
@@ -413,11 +405,11 @@ export const useEditorStore = create<EditorState>()(
               return rows;
             };
 
-            if (entry.rowIds === undefined || source.kind !== "table") {
+            if (entry.rowIds === undefined || source.kind !== 'table') {
               if (placed.has(source.id)) continue;
               placed.add(source.id);
               snapshotOf(source);
-              if (source.kind === "table") {
+              if (source.kind === 'table') {
                 placedRowCount.set(source.id, source.rows.length);
               }
               blocks.push(source);
@@ -433,9 +425,9 @@ export const useEditorStore = create<EditorState>()(
               blocks.push(source);
             } else {
               const original = snapshotOf(source);
-              if (original.kind !== "table") continue;
+              if (original.kind !== 'table') continue;
               const chunk = clone(original);
-              chunk.id = createId("block");
+              chunk.id = createId('block');
               chunk.rows = rows;
               chunk.startNumber =
                 placedRowCount.get(original.id) ?? original.rows.length;
@@ -447,7 +439,7 @@ export const useEditorStore = create<EditorState>()(
             }
           }
           nextPages.push({
-            id: previousPageIds[index] ?? createId("page"),
+            id: previousPageIds[index] ?? createId('page'),
             blocks,
           });
         }
@@ -461,7 +453,7 @@ export const useEditorStore = create<EditorState>()(
             .flatMap((page) => page.blocks)
             .find(
               (block) =>
-                block.kind === "table" &&
+                block.kind === 'table' &&
                 block.rows.some((row) => row.id === selectedRowId),
             );
           if (owner && owner.id !== tab.selection.blockId) {
@@ -471,7 +463,7 @@ export const useEditorStore = create<EditorState>()(
 
         tab.document.pages = nextPages;
         if (!nextPages.some((page) => page.id === tab.activePageId)) {
-          tab.activePageId = nextPages[0]?.id ?? "";
+          tab.activePageId = nextPages[0]?.id ?? '';
         }
         tab.dirty = true;
       }),
@@ -644,9 +636,9 @@ export const useEditorStore = create<EditorState>()(
           clamped.width = Math.min(600, Math.max(32, patch.width));
         }
         if (
-          patch.align === "left" ||
-          patch.align === "center" ||
-          patch.align === "right"
+          patch.align === 'left' ||
+          patch.align === 'center' ||
+          patch.align === 'right'
         ) {
           clamped.align = patch.align;
         }
@@ -721,9 +713,9 @@ export const useEditorStore = create<EditorState>()(
         snapshot(tab);
         const cells: Record<string, string> = {};
         for (const column of block.columns) {
-          if (column.role === "value") cells[column.id] = "";
+          if (column.role === 'value') cells[column.id] = '';
         }
-        block.rows.push({ id: createId("row"), cells });
+        block.rows.push({ id: createId('row'), cells });
       }),
 
     deleteRow: (blockId, rowId) =>
@@ -750,15 +742,15 @@ export const useEditorStore = create<EditorState>()(
 
         snapshot(tab);
         const column = {
-          id: createId("column"),
+          id: createId('column'),
           label: `Column ${block.columns.length}`,
           width: 100,
-          align: "left" as const,
-          role: "value" as const,
+          align: 'left' as const,
+          role: 'value' as const,
         };
         block.columns.push(column);
         for (const row of block.rows) {
-          row.cells[column.id] = "";
+          row.cells[column.id] = '';
         }
       }),
 
@@ -772,9 +764,9 @@ export const useEditorStore = create<EditorState>()(
         const targetId =
           columnId ??
           tab.selection.columnId ??
-          [...block.columns].reverse().find((col) => col.role === "value")?.id;
+          [...block.columns].reverse().find((col) => col.role === 'value')?.id;
         if (!targetId) return;
-        if (block.columns.filter((col) => col.role === "value").length <= 1) {
+        if (block.columns.filter((col) => col.role === 'value').length <= 1) {
           return;
         }
 
@@ -820,7 +812,7 @@ export const useEditorStore = create<EditorState>()(
         const tab = getTab(state);
         if (!tab) return;
         const block = getBlock(tab, blockId);
-        if (!block || block.kind !== "image") return;
+        if (!block || block.kind !== 'image') return;
 
         const clamped: { src?: string; alt?: string; height?: number } = {};
         if (patch.src !== undefined) clamped.src = patch.src;
@@ -839,7 +831,7 @@ export const useEditorStore = create<EditorState>()(
         const tab = getTab(state);
         if (!tab) return;
         const block = getBlock(tab, blockId);
-        if (!block || block.kind !== "shape") return;
+        if (!block || block.kind !== 'shape') return;
 
         const clamped: {
           fill?: string;
@@ -880,7 +872,7 @@ export const useEditorStore = create<EditorState>()(
         tab.activePageId =
           previous.pages.find((page) => page.id === tab.activePageId)?.id ??
           previous.pages[0]?.id ??
-          "";
+          '';
         tab.selection = { blockId: null, rowId: null, columnId: null };
         tab.dirty = true;
       }),
@@ -898,7 +890,7 @@ export const useEditorStore = create<EditorState>()(
         tab.activePageId =
           next.pages.find((page) => page.id === tab.activePageId)?.id ??
           next.pages[0]?.id ??
-          "";
+          '';
         tab.selection = { blockId: null, rowId: null, columnId: null };
         tab.dirty = true;
       }),
@@ -921,7 +913,7 @@ export const useEditorStore = create<EditorState>()(
         } else {
           const name = nextTemplateName(state.templates);
           const template: SavedTemplate = {
-            id: createId("template"),
+            id: createId('template'),
             name,
             createdAt: now,
             updatedAt: now,

@@ -1,11 +1,16 @@
-"use client";
+'use client';
 
-import { Frame, Image as ImageIcon, Shapes, SlidersHorizontal } from "lucide-react";
+import {
+  Frame,
+  Image as ImageIcon,
+  Shapes,
+  SlidersHorizontal,
+} from 'lucide-react';
 
-import { ColorField } from "@/components/ui/ColorField";
-import { Field, PanelSection } from "@/components/ui/Field";
-import { NumberField } from "@/components/ui/NumberField";
-import { useEditorStore } from "@/store/editorStore";
+import { ColorField } from '@/components/ui/ColorField';
+import { Field, PanelSection } from '@/components/ui/Field';
+import { NumberField } from '@/components/ui/NumberField';
+import { useEditorStore } from '@/store/editorStore';
 import {
   useBlockLayout,
   useImageBlock,
@@ -14,10 +19,10 @@ import {
   useSelectedColumnId,
   useSelectedRowId,
   useShapeBlock,
-} from "@/store/selectors";
-import { CellTextSettings } from "./CellTextSettings";
-import { TableSettings } from "./TableSettings";
-import { TextSettings } from "./TextSettings";
+} from '@/store/selectors';
+import { CellTextSettings } from './CellTextSettings';
+import { TableSettings } from './TableSettings';
+import { TextSettings } from './TextSettings';
 
 function LayoutSettings({ blockId }: { blockId: string }) {
   const layout = useBlockLayout(blockId);
@@ -76,7 +81,7 @@ function ImageSettings({ blockId }: { blockId: string }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result !== "string") return;
+      if (typeof reader.result !== 'string') return;
       store().updateImage(blockId, { src: reader.result, alt: file.name });
     };
     reader.readAsDataURL(file);
@@ -102,8 +107,7 @@ function ImageSettings({ blockId }: { blockId: string }) {
         <input
           type="file"
           accept="image/*"
-          className="w-full text-[12px] text-ink-600 file:mr-3 file:rounded-lg file:border file:border-line
-                     file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-ink-800"
+          className="w-full text-[12px] text-ink-600 file:mr-3 file:rounded-lg file:border file:border-line file:bg-white file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-ink-800"
           onChange={(event) => handleFile(event.target.files?.[0])}
         />
       </label>
@@ -157,11 +161,8 @@ export function PropertiesPanel() {
   const selectedRowId = useSelectedRowId();
   const selectedColumnId = useSelectedColumnId();
 
-  // Nested focus: a focused table cell gets its own text settings stacked on
-  // top of the block-level table settings; clicking the block frame (which
-  // clears rowId/columnId) returns the panel to table-only.
   const cellSelected =
-    kind === "table" && selectedRowId !== null && selectedColumnId !== null;
+    kind === 'table' && selectedRowId !== null && selectedColumnId !== null;
 
   return (
     <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-l border-line bg-white">
@@ -186,10 +187,10 @@ export function PropertiesPanel() {
               columnId={selectedColumnId}
             />
           ) : null}
-          {kind === "text" ? <TextSettings blockId={blockId} /> : null}
-          {kind === "table" ? <TableSettings blockId={blockId} /> : null}
-          {kind === "image" ? <ImageSettings blockId={blockId} /> : null}
-          {kind === "shape" ? <ShapeSettings blockId={blockId} /> : null}
+          {kind === 'text' ? <TextSettings blockId={blockId} /> : null}
+          {kind === 'table' ? <TableSettings blockId={blockId} /> : null}
+          {kind === 'image' ? <ImageSettings blockId={blockId} /> : null}
+          {kind === 'shape' ? <ShapeSettings blockId={blockId} /> : null}
           <LayoutSettings blockId={blockId} />
         </div>
       )}

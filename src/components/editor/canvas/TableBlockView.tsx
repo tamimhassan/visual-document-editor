@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   DndContext,
@@ -7,17 +7,17 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-} from "@dnd-kit/core";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import {
   SortableContext,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { Plus, Table2, Trash2 } from "lucide-react";
-import { memo } from "react";
+} from '@dnd-kit/sortable';
+import { Plus, Table2, Trash2 } from 'lucide-react';
+import { memo } from 'react';
 
-import { InlineText } from "@/components/ui/InlineText";
-import { useEditorStore } from "@/store/editorStore";
+import { InlineText } from '@/components/ui/InlineText';
+import { useEditorStore } from '@/store/editorStore';
 import {
   useSelectedRowId,
   useTableColumns,
@@ -25,9 +25,9 @@ import {
   useTableStartNumber,
   useTableStyle,
   useTableTitle,
-} from "@/store/selectors";
-import { TableRowView } from "./TableRowView";
-import { useReadOnly } from "./readOnly";
+} from '@/store/selectors';
+import { TableRowView } from './TableRowView';
+import { useReadOnly } from './readOnly';
 
 function TableBlockViewImpl({ blockId }: { blockId: string }) {
   const title = useTableTitle(blockId);
@@ -57,7 +57,7 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
   const table = (
     <table
       className="w-full border-collapse"
-      style={{ tableLayout: "fixed" }}
+      style={{ tableLayout: 'fixed' }}
       cellPadding={0}
       cellSpacing={0}
     >
@@ -70,48 +70,45 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
       <thead>
         <tr>
           <th data-editor-only="true" style={{ borderBottom: headerBorder }} />
-        {columns.map((column) => (
-          <th
-            key={column.id}
-            scope="col"
-            style={{
-              background: style.headerBackground,
-              color: style.headerColor,
-              borderBottom: headerBorder,
-              borderRight: headerBorder,
-              padding: `${style.padding}px`,
-              textAlign: column.align,
-              fontSize: `${style.fontSize}px`,
-              fontWeight: 600,
-            }}
-          >
-            {readOnly || column.role === "rowNumber" ? (
-              column.label
-            ) : (
-              <InlineText
-                value={column.label}
-                ariaLabel={`Rename ${column.label} column`}
-                className="w-full rounded-sm bg-transparent outline-none transition
-                           hover:bg-white/10 focus:bg-white/20 focus:ring-2 focus:ring-white/40"
-                style={{ color: "inherit", fontWeight: 600, textAlign: column.align }}
-                onCommit={(next) =>
-                  useEditorStore
-                    .getState()
-                    .updateColumn(blockId, column.id, { label: next })
-                }
-              />
-            )}
-          </th>
-        ))}
+          {columns.map((column) => (
+            <th
+              key={column.id}
+              scope="col"
+              style={{
+                background: style.headerBackground,
+                color: style.headerColor,
+                borderBottom: headerBorder,
+                borderRight: headerBorder,
+                padding: `${style.padding}px`,
+                textAlign: column.align,
+                fontSize: `${style.fontSize}px`,
+                fontWeight: 600,
+              }}
+            >
+              {readOnly || column.role === 'rowNumber' ? (
+                column.label
+              ) : (
+                <InlineText
+                  value={column.label}
+                  ariaLabel={`Rename ${column.label} column`}
+                  className="w-full rounded-sm bg-transparent outline-none transition hover:bg-white/10 focus:bg-white/20 focus:ring-2 focus:ring-white/40"
+                  style={{
+                    color: 'inherit',
+                    fontWeight: 600,
+                    textAlign: column.align,
+                  }}
+                  onCommit={(next) =>
+                    useEditorStore
+                      .getState()
+                      .updateColumn(blockId, column.id, { label: next })
+                  }
+                />
+              )}
+            </th>
+          ))}
         </tr>
       </thead>
-      <tbody
-        // Row numbers come from a CSS counter over the DOM order (see
-        // .row-number in globals.css), so reordering rows never has to
-        // re-render the row components to fix their numbers. Continuation
-        // tables continue numbering via startNumber.
-        style={{ counterReset: `row-num ${startNumber}` }}
-      >
+      <tbody style={{ counterReset: `row-num ${startNumber}` }}>
         {rowIds.map((rowId) => (
           <TableRowView
             key={rowId}
@@ -141,9 +138,7 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
             <InlineText
               value={title}
               ariaLabel="Table title"
-              className="min-w-0 flex-1 rounded-md bg-transparent px-1.5 py-0.5 text-[13px] font-semibold
-                         tracking-wide text-ink-900 outline-none transition
-                         hover:bg-slate-100 focus:bg-white focus:ring-2 focus:ring-brand-100"
+              className="min-w-0 flex-1 rounded-md bg-transparent px-1.5 py-0.5 text-[13px] font-semibold tracking-wide text-ink-900 outline-none transition hover:bg-slate-100 focus:bg-white focus:ring-2 focus:ring-brand-100"
               onCommit={(next) =>
                 useEditorStore.getState().updateTableTitle(blockId, next)
               }
@@ -158,8 +153,7 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
           >
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5
-                       text-[12px] font-medium text-brand-700 transition hover:bg-brand-100"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-[12px] font-medium text-brand-700 transition hover:bg-brand-100"
               onClick={() => useEditorStore.getState().addColumn(blockId)}
             >
               <Plus size={13} /> Add Column
@@ -202,8 +196,7 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
         <div className="mt-3" data-editor-only="true">
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2
-                     text-[12px] font-medium text-brand-700 transition hover:bg-brand-100"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-[12px] font-medium text-brand-700 transition hover:bg-brand-100"
             onClick={() => useEditorStore.getState().addRow(blockId)}
           >
             <Plus size={14} /> Add Row

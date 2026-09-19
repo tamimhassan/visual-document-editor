@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
-import { memo, useRef } from "react";
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
+import { memo, useRef } from 'react';
 
-import type { TableColumn, TableStyle } from "@/lib/types";
-import { FONT_STACKS } from "@/lib/types";
-import { useEditorStore } from "@/store/editorStore";
-import { useTableRowData } from "@/store/selectors";
-import { useReadOnly } from "./readOnly";
+import type { TableColumn, TableStyle } from '@/lib/types';
+import { FONT_STACKS } from '@/lib/types';
+import { useEditorStore } from '@/store/editorStore';
+import { useTableRowData } from '@/store/selectors';
+import { useReadOnly } from './readOnly';
 
 export interface TableRowViewProps {
   blockId: string;
@@ -26,8 +26,6 @@ function TableRowViewImpl({
   style,
   selected,
 }: TableRowViewProps) {
-  // The row OBJECT (not a cells-only slice): cell text edits and sparse
-  // cellStyles edits both re-render exactly this row via identity change.
   const row = useTableRowData(blockId, rowId);
   const readOnly = useReadOnly();
   const touched = useRef(false);
@@ -47,9 +45,9 @@ function TableRowViewImpl({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.6 : 1,
-    position: isDragging ? "relative" : undefined,
+    position: isDragging ? 'relative' : undefined,
     zIndex: isDragging ? 20 : undefined,
-    background: selected ? "#F8FAFF" : "#FFFFFF",
+    background: selected ? '#F8FAFF' : '#FFFFFF',
   };
 
   const cellBorder = `${style.borderWidth}px solid ${style.borderColor}`;
@@ -65,8 +63,7 @@ function TableRowViewImpl({
           <button
             type="button"
             aria-label="Reorder row"
-            className="flex h-full w-7 cursor-grab items-center justify-center text-ink-400
-                       transition hover:text-brand-600 active:cursor-grabbing"
+            className="flex h-full w-7 cursor-grab items-center justify-center text-ink-400 transition hover:text-brand-600 active:cursor-grabbing"
             {...attributes}
             {...listeners}
           >
@@ -76,11 +73,8 @@ function TableRowViewImpl({
       </td>
 
       {columns.map((column) => {
-        // THE cascade, in one place only: sparse cell override → column
-        // alignment → table style → hardcoded fallbacks for templates saved
-        // before the newer style fields existed.
         const override = row.cellStyles?.[column.id];
-        const fontFamily = override?.fontFamily ?? style.fontFamily ?? "inter";
+        const fontFamily = override?.fontFamily ?? style.fontFamily ?? 'inter';
         const align = override?.align ?? column.align;
 
         const shared: React.CSSProperties = {
@@ -92,23 +86,21 @@ function TableRowViewImpl({
           textAlign: align,
           fontSize: `${override?.fontSize ?? style.fontSize}px`,
           fontFamily: FONT_STACKS[fontFamily],
-          color: override?.color ?? style.cellColor ?? "#1F2937",
-          fontWeight: override?.fontWeight ?? style.fontWeight ?? "400",
+          color: override?.color ?? style.cellColor ?? '#1F2937',
+          fontWeight: override?.fontWeight ?? style.fontWeight ?? '400',
         };
 
-        if (column.role === "rowNumber") {
-          // The number itself is drawn by the .row-number::before counter
-          // rule, derived from DOM order — see the tbody counterReset.
+        if (column.role === 'rowNumber') {
           return (
             <td
               key={column.id}
               className="row-number"
-              style={{ ...shared, counterIncrement: "row-num" }}
+              style={{ ...shared, counterIncrement: 'row-num' }}
             />
           );
         }
 
-        const value = row.cells[column.id] ?? "";
+        const value = row.cells[column.id] ?? '';
 
         if (readOnly) {
           return (
@@ -121,8 +113,7 @@ function TableRowViewImpl({
         return (
           <td key={column.id} style={shared}>
             <input
-              className="w-full rounded-md bg-slate-50/80 px-2 py-1 text-inherit outline-none
-                         transition focus:bg-white focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-md bg-slate-50/80 px-2 py-1 text-inherit outline-none transition focus:bg-white focus:ring-2 focus:ring-brand-100"
               style={{ textAlign: align }}
               value={value}
               aria-label={column.label}

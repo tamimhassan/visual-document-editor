@@ -1,15 +1,19 @@
-"use client";
+'use client';
 
-import { Type } from "lucide-react";
+import { Type } from 'lucide-react';
 
-import { ColorField } from "@/components/ui/ColorField";
-import { Field, PanelSection } from "@/components/ui/Field";
-import { NumberField } from "@/components/ui/NumberField";
-import { SelectField } from "@/components/ui/SelectField";
-import { ALIGNMENTS, FAMILY_OPTIONS, WEIGHT_OPTIONS } from "@/components/ui/Typography";
-import { FONT_STACKS, type FontFamilyId, type FontWeight } from "@/lib/types";
-import { useEditorStore } from "@/store/editorStore";
-import { useTextStyle } from "@/store/selectors";
+import { ColorField } from '@/components/ui/ColorField';
+import { Field, PanelSection } from '@/components/ui/Field';
+import { NumberField } from '@/components/ui/NumberField';
+import { SelectField } from '@/components/ui/SelectField';
+import {
+  ALIGNMENTS,
+  FAMILY_OPTIONS,
+  WEIGHT_OPTIONS,
+} from '@/components/ui/Typography';
+import { FONT_STACKS, type FontFamilyId, type FontWeight } from '@/lib/types';
+import { useEditorStore } from '@/store/editorStore';
+import { useTextStyle } from '@/store/selectors';
 
 export function TextSettings({ blockId }: { blockId: string }) {
   const style = useTextStyle(blockId);
@@ -79,13 +83,11 @@ export function TextSettings({ blockId }: { blockId: string }) {
               type="button"
               aria-label={`Align ${option.value}`}
               aria-pressed={style.align === option.value}
-              className={`flex h-9 w-11 items-center justify-center transition
-                ${index > 0 ? "border-l border-line" : ""}
-                ${
-                  style.align === option.value
-                    ? "bg-brand-50 text-brand-700"
-                    : "bg-white text-ink-400 hover:text-ink-800"
-                }`}
+              className={`flex h-9 w-11 items-center justify-center transition ${index > 0 ? 'border-l border-line' : ''} ${
+                style.align === option.value
+                  ? 'bg-brand-50 text-brand-700'
+                  : 'bg-white text-ink-400 hover:text-ink-800'
+              }`}
               onClick={() => {
                 store().updateTextStyle(blockId, { align: option.value });
               }}

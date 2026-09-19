@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { memo } from "react";
+import { memo } from 'react';
 
-import { useShapeBlock } from "@/store/selectors";
+import { useShapeBlock } from '@/store/selectors';
 
 function ShapeBlockViewImpl({ blockId }: { blockId: string }) {
   const block = useShapeBlock(blockId);
@@ -15,7 +15,7 @@ function ShapeBlockViewImpl({ blockId }: { blockId: string }) {
         height: `${block.height}px`,
         background: block.fill,
         borderRadius:
-          block.shape === "ellipse" ? "9999px" : `${block.radius}px`,
+          block.shape === 'ellipse' ? '9999px' : `${block.radius}px`,
       }}
     />
   );

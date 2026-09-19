@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { memo } from "react";
+import { memo } from 'react';
 
-import { useImageBlock } from "@/store/selectors";
+import { useImageBlock } from '@/store/selectors';
 
 function ImageBlockViewImpl({ blockId }: { blockId: string }) {
   const block = useImageBlock(blockId);

@@ -1,13 +1,17 @@
-"use client";
+'use client';
 
-import { Maximize2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Maximize2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
-import { SelectField } from "@/components/ui/SelectField";
-import { useEditorStore } from "@/store/editorStore";
-import { useActiveTab, usePageIds } from "@/store/selectors";
-import { CanvasSheet, SHEET_MIN_HEIGHT, SHEET_WIDTH } from "./canvas/CanvasSheet";
-import { useAutoReflow } from "./canvas/useAutoReflow";
+import { SelectField } from '@/components/ui/SelectField';
+import { useEditorStore } from '@/store/editorStore';
+import { useActiveTab, usePageIds } from '@/store/selectors';
+import {
+  CanvasSheet,
+  SHEET_MIN_HEIGHT,
+  SHEET_WIDTH,
+} from './canvas/CanvasSheet';
+import { useAutoReflow } from './canvas/useAutoReflow';
 
 const ZOOM_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5].map((value) => ({
   value: String(value),
@@ -18,7 +22,7 @@ const PAGE_GAP = 24;
 
 export function CanvasStage() {
   const pageIds = usePageIds();
-  const activePageId = useActiveTab((tab) => tab?.activePageId ?? "");
+  const activePageId = useActiveTab((tab) => tab?.activePageId ?? '');
   const zoom = useEditorStore((state) => state.zoom);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -55,7 +59,7 @@ export function CanvasStage() {
       pageRect.top >= containerRect.top - 4 &&
       pageRect.bottom <= containerRect.bottom + 4;
     if (!visible) {
-      node.scrollIntoView({ behavior: "smooth", block: "start" });
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [activePageId]);
 
@@ -72,8 +76,7 @@ export function CanvasStage() {
         <button
           type="button"
           aria-label="Open full preview"
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white
-                     text-ink-600 transition hover:text-brand-600"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-ink-600 transition hover:text-brand-600"
           onClick={() => useEditorStore.getState().setPreviewOpen(true)}
         >
           <Maximize2 size={16} />
@@ -96,7 +99,7 @@ export function CanvasStage() {
               width: `${SHEET_WIDTH}px`,
               gap: `${PAGE_GAP}px`,
               transform: `scale(${zoom})`,
-              transformOrigin: "top left",
+              transformOrigin: 'top left',
             }}
           >
             {pageIds.map((pageId) => (
@@ -108,7 +111,7 @@ export function CanvasStage() {
                 }}
                 className={
                   pageId === activePageId && pageIds.length > 1
-                    ? "rounded-xl ring-4 ring-brand-200"
+                    ? 'rounded-xl ring-4 ring-brand-200'
                     : undefined
                 }
               >

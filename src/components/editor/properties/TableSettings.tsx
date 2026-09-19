@@ -1,28 +1,28 @@
-"use client";
+'use client';
 
-import { Columns3, Plus, Rows3, Table2, Trash2 } from "lucide-react";
+import { Columns3, Plus, Rows3, Table2, Trash2 } from 'lucide-react';
 
-import { Button } from "@/components/ui/Button";
-import { ColorField } from "@/components/ui/ColorField";
-import { Field, PanelSection } from "@/components/ui/Field";
-import { NumberField } from "@/components/ui/NumberField";
-import { SelectField } from "@/components/ui/SelectField";
-import { ALIGNMENTS, WEIGHT_OPTIONS } from "@/components/ui/Typography";
-import type { FontWeight } from "@/lib/types";
-import { useEditorStore } from "@/store/editorStore";
+import { Button } from '@/components/ui/Button';
+import { ColorField } from '@/components/ui/ColorField';
+import { Field, PanelSection } from '@/components/ui/Field';
+import { NumberField } from '@/components/ui/NumberField';
+import { SelectField } from '@/components/ui/SelectField';
+import { ALIGNMENTS, WEIGHT_OPTIONS } from '@/components/ui/Typography';
+import type { FontWeight } from '@/lib/types';
+import { useEditorStore } from '@/store/editorStore';
 import {
   useSelectedColumnId,
   useSelectedRowId,
   useTableColumns,
   useTableRowIds,
   useTableStyle,
-} from "@/store/selectors";
+} from '@/store/selectors';
 
 const BORDER_PRESETS = [
-  { value: "0|#E5E7EB", label: "None" },
-  { value: "1|#E5E7EB", label: "1px Solid #E5E7EB" },
-  { value: "1|#CBD5E1", label: "1px Solid #CBD5E1" },
-  { value: "2|#BFDBFE", label: "2px Solid #BFDBFE" },
+  { value: '0|#E5E7EB', label: 'None' },
+  { value: '1|#E5E7EB', label: '1px Solid #E5E7EB' },
+  { value: '1|#CBD5E1', label: '1px Solid #CBD5E1' },
+  { value: '2|#BFDBFE', label: '2px Solid #BFDBFE' },
 ];
 
 export function TableSettings({ blockId }: { blockId: string }) {
@@ -36,7 +36,7 @@ export function TableSettings({ blockId }: { blockId: string }) {
 
   if (!style) return null;
 
-  const editableColumns = columns.filter((column) => column.role === "value");
+  const editableColumns = columns.filter((column) => column.role === 'value');
   const targetColumn =
     editableColumns.find((column) => column.id === selectedColumnId) ??
     editableColumns[0];
@@ -68,10 +68,10 @@ export function TableSettings({ blockId }: { blockId: string }) {
               value={`${style.borderWidth}|${style.borderColor}`}
               options={BORDER_PRESETS}
               onChange={(next) => {
-                const [width, color] = next.split("|");
+                const [width, color] = next.split('|');
                 store().updateTableStyle(blockId, {
                   borderWidth: Number(width ?? 1),
-                  borderColor: color ?? "#E5E7EB",
+                  borderColor: color ?? '#E5E7EB',
                 });
               }}
             />
@@ -103,7 +103,7 @@ export function TableSettings({ blockId }: { blockId: string }) {
 
           <Field label="Font Weight">
             <SelectField
-              value={style.fontWeight ?? "400"}
+              value={style.fontWeight ?? '400'}
               options={WEIGHT_OPTIONS}
               onChange={(next) => {
                 store().updateTableStyle(blockId, {
@@ -115,7 +115,7 @@ export function TableSettings({ blockId }: { blockId: string }) {
 
           <Field label="Text Color">
             <ColorField
-              value={style.cellColor ?? "#1F2937"}
+              value={style.cellColor ?? '#1F2937'}
               onCommit={(next) =>
                 store().updateTableStyle(blockId, { cellColor: next })
               }
@@ -133,14 +133,11 @@ export function TableSettings({ blockId }: { blockId: string }) {
                 aria-label={`Align column ${option.value}`}
                 aria-pressed={targetColumn?.align === option.value}
                 disabled={!targetColumn}
-                className={`flex h-9 w-11 items-center justify-center transition
-                  disabled:cursor-not-allowed disabled:opacity-40
-                  ${index > 0 ? "border-l border-line" : ""}
-                  ${
-                    targetColumn?.align === option.value
-                      ? "bg-brand-50 text-brand-700"
-                      : "bg-white text-ink-400 hover:text-ink-800"
-                  }`}
+                className={`flex h-9 w-11 items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-40 ${index > 0 ? 'border-l border-line' : ''} ${
+                  targetColumn?.align === option.value
+                    ? 'bg-brand-50 text-brand-700'
+                    : 'bg-white text-ink-400 hover:text-ink-800'
+                }`}
                 onClick={() => {
                   if (!targetColumn) return;
                   store().updateColumn(blockId, targetColumn.id, {
@@ -175,8 +172,8 @@ export function TableSettings({ blockId }: { blockId: string }) {
         </div>
 
         <p className="mt-3 text-[11px] text-ink-400">
-          Width and alignment apply to{" "}
-          {targetColumn ? `the “${targetColumn.label}” column` : "no column"}.
+          Width and alignment apply to{' '}
+          {targetColumn ? `the “${targetColumn.label}” column` : 'no column'}.
           Click a cell to target a different one.
         </p>
       </PanelSection>
@@ -218,7 +215,9 @@ export function TableSettings({ blockId }: { blockId: string }) {
             variant="danger"
             icon={<Trash2 size={14} />}
             disabled={rowIds.length === 0}
-            onClick={() => store().deleteRow(blockId, selectedRowId ?? undefined)}
+            onClick={() =>
+              store().deleteRow(blockId, selectedRowId ?? undefined)
+            }
           >
             Delete Row
           </Button>
@@ -226,7 +225,7 @@ export function TableSettings({ blockId }: { blockId: string }) {
         <p className="mt-3 text-[11px] text-ink-400">
           {rowIndex >= 0
             ? `Deletes row ${rowIndex + 1}.`
-            : "Deletes the last row unless you select a cell first."}
+            : 'Deletes the last row unless you select a cell first.'}
         </p>
       </PanelSection>
     </>

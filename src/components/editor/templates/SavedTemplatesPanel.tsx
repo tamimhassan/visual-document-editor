@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { FileText, FolderOpen, MoreVertical, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { FileText, FolderOpen, MoreVertical, Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
-import { Button } from "@/components/ui/Button";
-import { formatTimestamp } from "@/lib/storage";
-import { useEditorStore } from "@/store/editorStore";
+import { Button } from '@/components/ui/Button';
+import { formatTimestamp } from '@/lib/storage';
+import { useEditorStore } from '@/store/editorStore';
 
 interface TemplateSummary {
   id: string;
@@ -32,14 +32,10 @@ function TemplateCard({ template }: { template: TemplateSummary }) {
     const onPointerDown = (event: PointerEvent): void => {
       if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
     };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [menuOpen]);
 
-  // The cards live in a short scroll strip; an absolutely-positioned popover
-  // would be clipped by its overflow. Fix the popover to the viewport at the
-  // button's coordinates instead, flipping above the button when the space
-  // below runs out.
   const MENU_HEIGHT = 84;
   const toggleMenu = (): void => {
     if (menuOpen) {
@@ -74,14 +70,13 @@ function TemplateCard({ template }: { template: TemplateSummary }) {
         {renaming ? (
           <input
             autoFocus
-            className="h-7 w-full max-w-[220px] rounded-md border border-line px-2 text-[13px] outline-none
-                       focus:border-brand-500"
+            className="h-7 w-full max-w-[220px] rounded-md border border-line px-2 text-[13px] outline-none focus:border-brand-500"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onBlur={commitRename}
             onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-              if (event.key === "Escape") {
+              if (event.key === 'Enter') event.currentTarget.blur();
+              if (event.key === 'Escape') {
                 setDraft(template.name);
                 setRenaming(false);
               }
@@ -117,7 +112,11 @@ function TemplateCard({ template }: { template: TemplateSummary }) {
 
         {menuOpen && menuPos ? (
           <div
-            style={{ position: "fixed", top: menuPos.top, right: menuPos.right }}
+            style={{
+              position: 'fixed',
+              top: menuPos.top,
+              right: menuPos.right,
+            }}
             className="z-50 w-40 overflow-hidden rounded-lg border border-line bg-white shadow-lg"
           >
             <button

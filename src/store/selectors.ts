@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useShallow } from "zustand/react/shallow";
+import { useShallow } from 'zustand/react/shallow';
 
-import { useEditorStore } from "@/store/editorStore";
+import { useEditorStore } from '@/store/editorStore';
 import type {
   Block,
   CellStyleOverride,
@@ -14,13 +14,7 @@ import type {
   TableBlock,
   Tab,
   TextBlock,
-} from "@/lib/types";
-
-/**
- * Every component subscribes to the smallest slice it can. Immer keeps object
- * identity stable for untouched branches of the state tree, so editing one
- * table cell re-renders that row and nothing else on the canvas.
- */
+} from '@/lib/types';
 
 export function findActiveTab(
   tabs: Tab[],
@@ -66,22 +60,22 @@ export function useBlock(blockId: string): Block | undefined {
 
 export function useTextBlock(blockId: string): TextBlock | undefined {
   const block = useBlock(blockId);
-  return block && block.kind === "text" ? block : undefined;
+  return block && block.kind === 'text' ? block : undefined;
 }
 
 export function useTableBlock(blockId: string): TableBlock | undefined {
   const block = useBlock(blockId);
-  return block && block.kind === "table" ? block : undefined;
+  return block && block.kind === 'table' ? block : undefined;
 }
 
 export function useImageBlock(blockId: string): ImageBlock | undefined {
   const block = useBlock(blockId);
-  return block && block.kind === "image" ? block : undefined;
+  return block && block.kind === 'image' ? block : undefined;
 }
 
 export function useShapeBlock(blockId: string): ShapeBlock | undefined {
   const block = useBlock(blockId);
-  return block && block.kind === "shape" ? block : undefined;
+  return block && block.kind === 'shape' ? block : undefined;
 }
 
 export function useIsBlockSelected(blockId: string): boolean {
@@ -126,7 +120,7 @@ export function useTableRow(
     if (!tab) return undefined;
     for (const page of tab.document.pages) {
       const block = page.blocks.find((item) => item.id === blockId);
-      if (block && block.kind === "table") {
+      if (block && block.kind === 'table') {
         return block.rows.find((row) => row.id === rowId)?.cells;
       }
     }
@@ -134,12 +128,6 @@ export function useTableRow(
   });
 }
 
-/**
- * The row OBJECT (cells + sparse cellStyles), not a fresh composite — a new
- * `{cells, cellStyles}` object per call would break Object.is and re-render
- * every row on every store change. Immer keeps an untouched row's identity
- * stable, so editing one row still re-renders only that row.
- */
 export function useTableRowData(
   blockId: string,
   rowId: string,
@@ -148,7 +136,7 @@ export function useTableRowData(
     if (!tab) return undefined;
     for (const page of tab.document.pages) {
       const block = page.blocks.find((item) => item.id === blockId);
-      if (block && block.kind === "table") {
+      if (block && block.kind === 'table') {
         return block.rows.find((row) => row.id === rowId);
       }
     }
@@ -166,8 +154,10 @@ export function useCellStyleOverride(
     if (!tab) return undefined;
     for (const page of tab.document.pages) {
       const block = page.blocks.find((item) => item.id === blockId);
-      if (block && block.kind === "table") {
-        return block.rows.find((row) => row.id === rowId)?.cellStyles?.[columnId];
+      if (block && block.kind === 'table') {
+        return block.rows.find((row) => row.id === rowId)?.cellStyles?.[
+          columnId
+        ];
       }
     }
     return undefined;
@@ -178,12 +168,12 @@ export function useTableColumn(
   blockId: string,
   columnId: string,
 ): TableColumn | undefined {
-  return useActiveTab(
-    (tab) => findTable(tab, blockId)?.columns.find((col) => col.id === columnId),
+  return useActiveTab((tab) =>
+    findTable(tab, blockId)?.columns.find((col) => col.id === columnId),
   );
 }
 
-const EMPTY_COLUMNS: TableBlock["columns"] = [];
+const EMPTY_COLUMNS: TableBlock['columns'] = [];
 
 function findTable(
   tab: Tab | undefined,
@@ -192,16 +182,11 @@ function findTable(
   if (!tab) return undefined;
   for (const page of tab.document.pages) {
     const block = page.blocks.find((item) => item.id === blockId);
-    if (block && block.kind === "table") return block;
+    if (block && block.kind === 'table') return block;
   }
   return undefined;
 }
 
-/**
- * Row ids, columns and style are selected separately from cell values. Immer
- * leaves those branches untouched when a cell changes, so the table shell does
- * not re-render while the user types in a cell.
- */
 export function useTableRowIds(blockId: string): string[] {
   return useEditorStore(
     useShallow((state) => {
@@ -214,29 +199,29 @@ export function useTableRowIds(blockId: string): string[] {
   );
 }
 
-export function useTableColumns(blockId: string): TableBlock["columns"] {
-  return useActiveTab((tab) => findTable(tab, blockId)?.columns ?? EMPTY_COLUMNS);
+export function useTableColumns(blockId: string): TableBlock['columns'] {
+  return useActiveTab(
+    (tab) => findTable(tab, blockId)?.columns ?? EMPTY_COLUMNS,
+  );
 }
 
-export function useTableStyle(blockId: string): TableBlock["style"] | undefined {
+export function useTableStyle(
+  blockId: string,
+): TableBlock['style'] | undefined {
   return useActiveTab((tab) => findTable(tab, blockId)?.style);
 }
 
 export function useTableTitle(blockId: string): string {
-  return useActiveTab((tab) => findTable(tab, blockId)?.title ?? "");
+  return useActiveTab((tab) => findTable(tab, blockId)?.title ?? '');
 }
 
 export interface BlockLayoutSlice {
-  kind: Block["kind"] | null;
+  kind: Block['kind'] | null;
   widthPercent: number;
   indentLeft: number;
   marginBottom: number;
 }
 
-/**
- * The frame only cares about geometry, so it selects primitives. Editing text
- * inside a block leaves these values untouched and the frame does not re-render.
- */
 export function useBlockLayout(blockId: string): BlockLayoutSlice {
   return useEditorStore(
     useShallow((state) => {
@@ -280,9 +265,8 @@ export function usePageIds(): string[] {
   );
 }
 
-/** Block kinds only — enough to paint a page thumbnail without re-rendering it
- *  on every keystroke. */
-export function usePageBlockKinds(pageId: string): Block["kind"][] {
+/** Block kinds only — enough to paint a page thumbnail without re-rendering it on every keystroke. */
+export function usePageBlockKinds(pageId: string): Block['kind'][] {
   return useEditorStore(
     useShallow((state) => {
       const tab = findActiveTab(state.tabs, state.activeTabId);
@@ -292,7 +276,7 @@ export function usePageBlockKinds(pageId: string): Block["kind"][] {
   );
 }
 
-export function useSelectedBlockKind(): Block["kind"] | null {
+export function useSelectedBlockKind(): Block['kind'] | null {
   return useActiveTab((tab) => {
     if (!tab || !tab.selection.blockId) return null;
     for (const page of tab.document.pages) {
@@ -305,12 +289,12 @@ export function useSelectedBlockKind(): Block["kind"] | null {
   });
 }
 
-export function useTextStyle(blockId: string): TextBlock["style"] | undefined {
+export function useTextStyle(blockId: string): TextBlock['style'] | undefined {
   return useActiveTab((tab) => {
     if (!tab) return undefined;
     for (const page of tab.document.pages) {
       const block = page.blocks.find((item) => item.id === blockId);
-      if (block && block.kind === "text") return block.style;
+      if (block && block.kind === 'text') return block.style;
     }
     return undefined;
   });

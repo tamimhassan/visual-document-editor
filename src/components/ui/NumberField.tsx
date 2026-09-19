@@ -1,11 +1,7 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
 
-/**
- * Numeric input that keeps a local draft while typing so a half-typed value
- * ("1" on the way to "12") never round-trips through the store.
- */
 export function NumberField({
   value,
   suffix,
@@ -42,11 +38,11 @@ export function NumberField({
   };
 
   return (
-    <div className="relative">
+    <div className='relative'>
       <input
-        className="field-control pr-9"
-        inputMode="decimal"
-        type="number"
+        className='field-control pr-9'
+        inputMode='decimal'
+        type='number'
         min={min}
         max={max}
         step={step}
@@ -55,11 +51,11 @@ export function NumberField({
         onChange={(event) => setDraft(event.target.value)}
         onBlur={(event) => commit(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
+          if (event.key === 'Enter') event.currentTarget.blur();
         }}
       />
       {suffix ? (
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-400">
+        <span className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-400'>
           {suffix}
         </span>
       ) : null}

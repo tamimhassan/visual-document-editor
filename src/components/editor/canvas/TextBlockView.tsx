@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from 'react';
 
-import { FONT_STACKS } from "@/lib/types";
-import { useEditorStore } from "@/store/editorStore";
-import { useTextBlock } from "@/store/selectors";
-import { useReadOnly } from "./readOnly";
+import { FONT_STACKS } from '@/lib/types';
+import { useEditorStore } from '@/store/editorStore';
+import { useTextBlock } from '@/store/selectors';
+import { useReadOnly } from './readOnly';
 
 function TextBlockViewImpl({ blockId }: { blockId: string }) {
   const block = useTextBlock(blockId);
@@ -13,10 +13,8 @@ function TextBlockViewImpl({ blockId }: { blockId: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const touched = useRef(false);
 
-  const content = block?.content ?? "";
+  const content = block?.content ?? '';
 
-  // Text is written into the DOM imperatively so React never re-renders the
-  // node the caret lives in while the user is typing.
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
@@ -35,8 +33,8 @@ function TextBlockViewImpl({ blockId }: { blockId: string }) {
     textAlign: block.style.align,
     lineHeight: block.style.lineHeight,
     letterSpacing: `${block.style.letterSpacing}px`,
-    whiteSpace: "pre-wrap" as const,
-    wordBreak: "break-word" as const,
+    whiteSpace: 'pre-wrap' as const,
+    wordBreak: 'break-word' as const,
   };
 
   if (readOnly) {
@@ -58,7 +56,6 @@ function TextBlockViewImpl({ blockId }: { blockId: string }) {
         touched.current = false;
       }}
       onInput={() => {
-        // One history entry per editing session rather than per keystroke.
         if (touched.current) return;
         touched.current = true;
         useEditorStore.getState().beginEdit();

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   DndContext,
@@ -7,16 +7,16 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-} from "@dnd-kit/core";
-import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
-import { memo } from "react";
+} from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
+import { memo } from 'react';
 
-import { useEditorStore } from "@/store/editorStore";
-import { usePageBlockIds } from "@/store/selectors";
-import { BlockFrame } from "./BlockFrame";
-import { useReadOnly } from "./readOnly";
+import { useEditorStore } from '@/store/editorStore';
+import { usePageBlockIds } from '@/store/selectors';
+import { BlockFrame } from './BlockFrame';
+import { useReadOnly } from './readOnly';
 
-/** A4 at 96dpi, so the exported PDF matches what is on screen. */
+// A4 at 96dpi, so the exported PDF matches what is on screen.
 export const SHEET_WIDTH = 794;
 export const SHEET_MIN_HEIGHT = 1123;
 export const SHEET_PADDING = 48;

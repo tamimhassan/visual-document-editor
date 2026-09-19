@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
 
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -23,32 +23,28 @@ export function ColorField({
   }
 
   return (
-    <div className="flex h-9 w-full items-center gap-2 rounded-lg border border-line bg-white px-2">
-      <label className="relative h-5 w-5 shrink-0 overflow-hidden rounded-[5px] border border-line">
+    <div className='flex h-9 w-full items-center gap-2 rounded-lg border border-line bg-white px-2'>
+      <label className='relative h-5 w-5 shrink-0 overflow-hidden rounded-[5px] border border-line'>
         <span
           aria-hidden
-          className="absolute inset-0"
+          className='absolute inset-0'
           style={{ background: HEX.test(draft) ? draft : value }}
         />
         <input
-          aria-label="Pick colour"
-          className="absolute inset-0 cursor-pointer opacity-0"
-          type="color"
-          value={HEX.test(draft) ? draft : "#000000"}
+          aria-label='Pick colour'
+          className='absolute inset-0 cursor-pointer opacity-0'
+          type='color'
+          value={HEX.test(draft) ? draft : '#000000'}
           onFocus={onFocus}
           onChange={(event) => setDraft(event.target.value)}
-          // Commit once when the picker closes, not on every drag tick — the
-          // store actions snapshot per real mutation, so per-tick commits
-          // would flood undo history (the swatch above still previews live
-          // via the draft).
           onBlur={() => {
             if (HEX.test(draft)) onCommit(draft);
           }}
         />
       </label>
       <input
-        aria-label="Colour hex value"
-        className="w-full bg-transparent text-[13px] uppercase text-ink-800 outline-none"
+        aria-label='Colour hex value'
+        className='w-full bg-transparent text-[13px] uppercase text-ink-800 outline-none'
         value={draft}
         onFocus={onFocus}
         onChange={(event) => setDraft(event.target.value)}
