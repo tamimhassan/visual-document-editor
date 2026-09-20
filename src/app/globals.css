@@ -62,6 +62,23 @@ body {
   display: none !important;
 }
 
+/* Toast entrance: a small slide-and-fade, disabled by the global
+   prefers-reduced-motion clamp near the top of this file. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-in {
+  animation: toast-in 160ms ease-out;
+}
+
 /* Table row numbers are a CSS counter over DOM order (each tbody resets it to
    the table's startNumber). Reordering rows then corrects every number purely
    through CSS, without re-rendering the row components. */

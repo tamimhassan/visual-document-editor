@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, FolderOpen, MoreVertical, Plus } from 'lucide-react';
+import { FileText, FolderOpen, MoreVertical, Plus, Star } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
@@ -19,7 +19,13 @@ interface MenuPosition {
   right: number;
 }
 
-function TemplateCard({ template }: { template: TemplateSummary }) {
+function TemplateCard({
+  template,
+  isDefault,
+}: {
+  template: TemplateSummary;
+  isDefault: boolean;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(template.name);
@@ -36,7 +42,7 @@ function TemplateCard({ template }: { template: TemplateSummary }) {
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [menuOpen]);
 
-  const MENU_HEIGHT = 84;
+  const MENU_HEIGHT = 122;
   const toggleMenu = (): void => {
     if (menuOpen) {
       setMenuOpen(false);
@@ -83,8 +89,17 @@ function TemplateCard({ template }: { template: TemplateSummary }) {
             }}
           />
         ) : (
-          <p className="truncate text-[13px] font-semibold text-ink-900">
-            {template.name}
+          <p className="flex items-center gap-1.5 truncate text-[13px] font-semibold text-ink-900">
+            <span className="truncate">{template.name}</span>
+            {isDefault ? (
+              <span
+                title="Default template"
+                aria-label="Default template"
+                className="shrink-0 text-brand-500"
+              >
+                <Star size={13} className="fill-brand-500" />
+              </span>
+            ) : null}
           </p>
         )}
         <p className="mt-0.5 text-[11px] text-ink-400">
@@ -121,6 +136,18 @@ function TemplateCard({ template }: { template: TemplateSummary }) {
           >
             <button
               type="button"
+              disabled={isDefault}
+              className="block w-full px-3 py-2 text-left text-[13px] hover:bg-slate-50
+                         disabled:cursor-default disabled:hover:bg-transparent disabled:text-ink-400"
+              onClick={() => {
+                setMenuOpen(false);
+                useEditorStore.getState().setDefaultTemplate(template.id);
+              }}
+            >
+              {isDefault ? 'Default template' : 'Set default'}
+            </button>
+            <button
+              type="button"
               className="block w-full px-3 py-2 text-left text-[13px] hover:bg-slate-50"
               onClick={() => {
                 setMenuOpen(false);
@@ -148,6 +175,9 @@ function TemplateCard({ template }: { template: TemplateSummary }) {
 
 export function SavedTemplatesPanel() {
   const templates = useEditorStore((state) => state.templates);
+  const defaultTemplateId = useEditorStore(
+    (state) => state.defaultTemplateId,
+  );
 
   return (
     <section className="border-t border-line bg-white px-6 py-4">
@@ -183,7 +213,11 @@ export function SavedTemplatesPanel() {
           </p>
         ) : (
           templates.map((template) => (
-            <TemplateCard key={template.id} template={template} />
+            <TemplateCard
+              key={template.id}
+              template={template}
+              isDefault={template.id === defaultTemplateId}
+            />
           ))
         )}
       </div>

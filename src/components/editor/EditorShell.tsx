@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 
+import { ToastProvider, useToast } from '@/components/ui/toast';
 import { useEditorStore } from '@/store/editorStore';
 import { CanvasStage } from './CanvasStage';
 import { PdfExportRoot } from './canvas/PdfExportRoot';
@@ -12,13 +13,34 @@ import { TabBar } from './TabBar';
 import { Toolbox } from './Toolbox';
 import { TopBar } from './TopBar';
 
+/**
+ * Turns successful saves into toasts. Subscribes to the store directly so the
+ * shell itself does not re-render on every save, and covers every save
+ * trigger (button, Cmd/Ctrl+S, templates panel) because they all run the
+ * same store action.
+ */
+function SaveToastBridge() {
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    let lastSeq = useEditorStore.getState().lastSaveEvent?.seq ?? 0;
+    const unsubscribe = useEditorStore.subscribe((state) => {
+      const event = state.lastSaveEvent;
+      if (!event || event.seq === lastSeq) return;
+      lastSeq = event.seq;
+      showToast(
+        event.created ? `Saved as ${event.name}` : `Updated ${event.name}`,
+      );
+    });
+    return unsubscribe;
+  }, [showToast]);
+
+  return null;
+}
+
 export function EditorShell() {
-  // The export surface mounts only while a PDF export is running: a permanently
-  // mounted twin would double the render work of every edit and every tab switch.
   const exporting = useEditorStore((state) => state.exporting);
 
-  // localStorage is only available on the client, so the saved template is
-  // restored after mount. Server and first client render therefore agree.
   useEffect(() => {
     useEditorStore.getState().hydrate();
   }, []);
@@ -45,24 +67,27 @@ export function EditorShell() {
   }, []);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-canvas">
-      <TopBar />
-      <TabBar />
+    <ToastProvider>
+      <div className="flex h-screen flex-col overflow-hidden bg-canvas">
+        <TopBar />
+        <TabBar />
 
-      <div className="flex min-h-0 flex-1">
-        <Toolbox />
+        <div className="flex min-h-0 flex-1">
+          <Toolbox />
 
-        <main className="flex min-w-0 flex-1 flex-col">
-          <div className="flex min-h-0 flex-1">
-            <CanvasStage />
-            <PropertiesPanel />
-          </div>
-          <SavedTemplatesPanel />
-        </main>
+          <main className="flex min-w-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1">
+              <CanvasStage />
+              <PropertiesPanel />
+            </div>
+            <SavedTemplatesPanel />
+          </main>
+        </div>
+
+        <PreviewDialog />
+        {exporting ? <PdfExportRoot /> : null}
       </div>
-
-      <PreviewDialog />
-      {exporting ? <PdfExportRoot /> : null}
-    </div>
+      <SaveToastBridge />
+    </ToastProvider>
   );
 }

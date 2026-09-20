@@ -2,6 +2,17 @@ import type { SavedTemplate } from '@/lib/types';
 
 const STORAGE_KEY = 'vde.templates';
 
+/** Shape persisted to localStorage. `defaultTemplateId` is never null. */
+export interface TemplateStore {
+  /**
+   * The template the editor opens on launch. `""` means "no default yet"
+   * (fresh install, or the last template was deleted); the app then falls
+   * back to the built-in blank document.
+   */
+  defaultTemplateId: string;
+  templates: SavedTemplate[];
+}
+
 function isBrowser(): boolean {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 }
@@ -20,43 +31,77 @@ function isSavedTemplate(value: unknown): value is SavedTemplate {
   );
 }
 
-export function readTemplates(): SavedTemplate[] {
-  if (!isBrowser()) return [];
-
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.filter(isSavedTemplate);
-  } catch {
-    return [];
-  }
-}
-
-export function writeTemplates(templates: SavedTemplate[]): void {
-  if (!isBrowser()) return;
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
-  } catch {
-    // Quota errors are non-fatal: the in-memory document is still intact.
-  }
-}
-
-/** The template the editor should open with, the most recently saved one. */
-export function pickTemplateToRestore(
-  templates: SavedTemplate[],
-): SavedTemplate | null {
-  if (templates.length === 0) return null;
+/**
+ * The default implied by data saved before explicit defaults existed: the
+ * most recently updated template, which is what the app used to restore.
+ */
+function legacyDefault(templates: SavedTemplate[]): string {
+  if (templates.length === 0) return '';
 
   const sorted = [...templates].sort(
     (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
   );
 
-  return sorted[0] ?? null;
+  return sorted[0]?.id ?? '';
+}
+
+/**
+ * Self-heals a default that no longer points at a real template (hand-edited
+ * localStorage, corrupted data): fall back to the first surviving template
+ * rather than trusting a stale reference.
+ */
+function healDefault(store: TemplateStore): TemplateStore {
+  if (store.templates.some((template) => template.id === store.defaultTemplateId)) {
+    return store;
+  }
+  return { ...store, defaultTemplateId: store.templates[0]?.id ?? '' };
+}
+
+export function readTemplateStore(): TemplateStore {
+  const empty: TemplateStore = { defaultTemplateId: '', templates: [] };
+  if (!isBrowser()) return empty;
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return empty;
+
+    const parsed: unknown = JSON.parse(raw);
+
+    // Legacy shape (written before explicit defaults): a bare template array.
+    // The implicit default it carried becomes the explicit one.
+    if (Array.isArray(parsed)) {
+      const templates = parsed.filter(isSavedTemplate);
+      return healDefault({
+        defaultTemplateId: legacyDefault(templates),
+        templates,
+      });
+    }
+
+    if (typeof parsed !== 'object' || parsed === null) return empty;
+
+    const candidate = parsed as Partial<TemplateStore>;
+    const templates = Array.isArray(candidate.templates)
+      ? candidate.templates.filter(isSavedTemplate)
+      : [];
+    const defaultTemplateId =
+      typeof candidate.defaultTemplateId === 'string'
+        ? candidate.defaultTemplateId
+        : '';
+
+    return healDefault({ defaultTemplateId, templates });
+  } catch {
+    return empty;
+  }
+}
+
+export function writeTemplateStore(store: TemplateStore): void {
+  if (!isBrowser()) return;
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch {
+    // Quota errors are non-fatal: the in-memory document is still intact.
+  }
 }
 
 export function formatTimestamp(iso: string): string {

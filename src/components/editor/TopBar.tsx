@@ -4,6 +4,7 @@ import { Download, Eye, FileText, Redo2, Save, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/toast';
 import { exportActiveDocumentToPdf } from '@/lib/pdf';
 import { useEditorStore } from '@/store/editorStore';
 import { useActiveTab } from '@/store/selectors';
@@ -14,6 +15,7 @@ export function TopBar() {
   const canRedo = useActiveTab((tab) => (tab?.future.length ?? 0) > 0);
   const dirty = useActiveTab((tab) => tab?.dirty ?? false);
   const exporting = useEditorStore((state) => state.exporting);
+  const { showToast } = useToast();
 
   const [draft, setDraft] = useState(projectName);
   const [lastProjectName, setLastProjectName] = useState(projectName);
@@ -40,6 +42,11 @@ export function TopBar() {
     store.setExporting(true);
     try {
       await exportActiveDocumentToPdf(projectName || 'document');
+      showToast('PDF downloaded');
+    } catch (error) {
+      // Previously failures only surfaced as unhandled promise rejections.
+      console.error('PDF export failed', error);
+      showToast('Export failed — try again', 'error');
     } finally {
       useEditorStore.getState().setExporting(false);
     }

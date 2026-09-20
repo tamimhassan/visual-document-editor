@@ -29,11 +29,17 @@ through `next/font/google`, so it needs network access.
 2. Edit it: drag blocks, reorder table rows by their `⋮⋮` handles, type in
    cells, restyle anything from the right-hand panel.
 3. Press **Save** (or ⌘/Ctrl+S). The first save of a tab stores the document as
-   **`template1`**.
-4. Reopen the app — `template1` is loaded instead of the default template.
+   **`template1`**, and — being the first template ever saved — it
+   automatically becomes the **default template**.
+4. Reopen the app — the default template is loaded instead of the built-in
+   document.
 
 Saving again from the same tab updates that template rather than creating a
-duplicate. A second, independent tab saves as `template2`, and so on.
+duplicate. A second, independent tab saves as `template2`, and so on; those
+saves never change which template is default. Use **Set default** on a template
+card's menu to switch the default explicitly (marked with a star on the card).
+Deleting the default reassigns it to the first surviving template. Every save
+and PDF export confirms with a toast.
 
 ## Features
 
@@ -71,7 +77,8 @@ spacing. Image blocks accept an uploaded file (stored as a data URI); shape
 blocks expose fill, height and corner radius.
 
 **Saved templates** — cards list every saved template with its timestamp, an
-**Open** button that hydrates a new tab, and a menu to rename or delete.
+**Open** button that hydrates a new tab, and a menu to set it as the default
+(marked with a star), rename, or delete.
 
 **PDF export** — rasterises the off-screen read-only copy of the sheets with
 `html2canvas` (JPEG at 2× scale, which keeps multi-page exports small and the
@@ -114,10 +121,13 @@ changes only that row's `cells` object. The result:
   canvas, so they don't repaint while you type;
 - switching tabs swaps one subtree; the canvas itself is keyed by page.
 
-**Persistence.** `localStorage` under `vde.templates.v1`, read defensively —
+**Persistence.** `localStorage` under `vde.templates`, read defensively —
 a corrupted or hand-edited value degrades to "no saved templates" rather than
-breaking the editor. Hydration happens in an effect after mount so the server
-render and the first client render agree.
+breaking the editor. The payload is `{ defaultTemplateId, templates }`; the
+default id is self-healed on read (a dangling id falls back to the first
+surviving template), and data saved by older versions (a bare template array)
+migrates automatically. Hydration happens in an effect after mount so the
+server render and the first client render agree.
 
 **Type safety.** `strict: true` with `noImplicitAny`, `noUncheckedIndexedAccess`
 and `noUnusedLocals`. There are no `any` types in `src/`. Blocks are a

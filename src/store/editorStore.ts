@@ -15,9 +15,8 @@ import {
 } from '@/lib/defaultTemplate';
 import { createId } from '@/lib/ids';
 import {
-  pickTemplateToRestore,
-  readTemplates,
-  writeTemplates,
+  readTemplateStore,
+  writeTemplateStore,
 } from '@/lib/storage';
 import type {
   Block,
@@ -38,16 +37,28 @@ import type {
 
 const HISTORY_LIMIT = 60;
 
+/** Emitted whenever a save succeeds, so the UI can toast a confirmation. */
+export interface SaveEvent {
+  templateId: string;
+  name: string;
+  /** True when the save created a new template rather than updating one. */
+  created: boolean;
+  /** Increments per save so identical consecutive saves re-trigger toasts. */
+  seq: number;
+}
+
 export interface EditorState {
   hydrated: boolean;
   tabs: Tab[];
   activeTabId: string;
   templates: SavedTemplate[];
+  /** The template restored on launch; "" while no template is the default. */
+  defaultTemplateId: string;
   zoom: number;
   previewOpen: boolean;
   exporting: boolean;
-  /** Bumped whenever a save succeeds, so the UI can flash a confirmation. */
-  lastSavedTemplateId: string | null;
+  /** Replaced on every successful save (see SaveEvent), or null initially. */
+  lastSaveEvent: SaveEvent | null;
 
   hydrate: () => void;
 
@@ -126,6 +137,7 @@ export interface EditorState {
   openTemplate: (templateId: string) => void;
   deleteTemplate: (templateId: string) => void;
   renameTemplate: (templateId: string, name: string) => void;
+  setDefaultTemplate: (templateId: string) => void;
 
   setZoom: (zoom: number) => void;
   setPreviewOpen: (open: boolean) => void;
@@ -222,7 +234,10 @@ function persist(state: Draft): void {
   const templates = isDraft(state.templates)
     ? current(state.templates)
     : state.templates;
-  writeTemplates(clone(templates));
+  writeTemplateStore({
+    defaultTemplateId: state.defaultTemplateId,
+    templates: clone(templates),
+  });
 }
 
 // First save of a tab is "template1", then template2, template3... The name
@@ -255,22 +270,28 @@ export const useEditorStore = create<EditorState>()(
     tabs: [INITIAL_TAB],
     activeTabId: INITIAL_TAB.id,
     templates: [],
+    defaultTemplateId: '',
     zoom: 1,
     previewOpen: false,
     exporting: false,
-    lastSavedTemplateId: null,
+    lastSaveEvent: null,
 
     hydrate: () =>
       set((state) => {
         if (state.hydrated) return;
 
-        const templates = readTemplates();
-        state.templates = templates;
+        const store = readTemplateStore();
+        state.templates = store.templates;
+        state.defaultTemplateId = store.defaultTemplateId;
         state.hydrated = true;
 
-        // Requirement: once a template has been saved, reopening the app must
-        // restore it instead of the built-in default document.
-        const restored = pickTemplateToRestore(templates);
+        // Requirement: reopening the app restores the default template (set
+        // explicitly, or the first one ever saved) instead of the built-in
+        // document. readTemplateStore self-heals a dangling default id.
+        const restored =
+          store.templates.find(
+            (template) => template.id === store.defaultTemplateId,
+          ) ?? null;
         const tab = getTab(state);
         if (!restored || !tab) return;
 
@@ -905,11 +926,17 @@ export const useEditorStore = create<EditorState>()(
         const existing = state.templates.find(
           (template) => template.id === tab.templateId,
         );
+        const seq = (state.lastSaveEvent?.seq ?? 0) + 1;
 
         if (existing) {
           existing.document = document;
           existing.updatedAt = now;
-          state.lastSavedTemplateId = existing.id;
+          state.lastSaveEvent = {
+            templateId: existing.id,
+            name: existing.name,
+            created: false,
+            seq,
+          };
         } else {
           const name = nextTemplateName(state.templates);
           const template: SavedTemplate = {
@@ -919,10 +946,20 @@ export const useEditorStore = create<EditorState>()(
             updatedAt: now,
             document,
           };
+          // The first template ever saved becomes the default automatically —
+          // there is nothing else it could point to. Every save after that
+          // leaves the default untouched; only setDefaultTemplate changes it.
+          const firstEver = state.templates.length === 0;
           state.templates.push(template);
+          if (firstEver) state.defaultTemplateId = template.id;
           tab.templateId = template.id;
           tab.title = template.name;
-          state.lastSavedTemplateId = template.id;
+          state.lastSaveEvent = {
+            templateId: template.id,
+            name,
+            created: true,
+            seq,
+          };
         }
 
         tab.dirty = false;
@@ -960,6 +997,11 @@ export const useEditorStore = create<EditorState>()(
         for (const tab of state.tabs) {
           if (tab.templateId === templateId) tab.templateId = null;
         }
+        // Deleting the default reassigns it instead of leaving it dangling:
+        // the first surviving template, or "" if that was the last one.
+        if (state.defaultTemplateId === templateId) {
+          state.defaultTemplateId = state.templates[0]?.id ?? '';
+        }
         persist(state);
       }),
 
@@ -972,6 +1014,17 @@ export const useEditorStore = create<EditorState>()(
         for (const tab of state.tabs) {
           if (tab.templateId === templateId) tab.title = name;
         }
+        persist(state);
+      }),
+
+    setDefaultTemplate: (templateId) =>
+      set((state) => {
+        // The only manual way to change the default; saving never touches it.
+        if (!state.templates.some((template) => template.id === templateId)) {
+          return;
+        }
+        if (state.defaultTemplateId === templateId) return;
+        state.defaultTemplateId = templateId;
         persist(state);
       }),
 
