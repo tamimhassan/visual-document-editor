@@ -17,6 +17,7 @@ import { Plus, Table2, Trash2 } from 'lucide-react';
 import { memo } from 'react';
 
 import { InlineText } from '@/components/ui/InlineText';
+import type { TableFragment } from '@/lib/types';
 import { useEditorStore } from '@/store/editorStore';
 import {
   useSelectedRowId,
@@ -29,11 +30,18 @@ import {
 import { TableRowView } from './TableRowView';
 import { useReadOnly } from './readOnly';
 
-function TableBlockViewImpl({ blockId }: { blockId: string }) {
+function TableBlockViewImpl({
+  blockId,
+  fragment,
+}: {
+  blockId: string;
+  /** Row-range slice when pagination split this table across pages. */
+  fragment?: TableFragment;
+}) {
   const title = useTableTitle(blockId);
   const columns = useTableColumns(blockId);
   const style = useTableStyle(blockId);
-  const rowIds = useTableRowIds(blockId);
+  const allRowIds = useTableRowIds(blockId);
   const startNumber = useTableStartNumber(blockId);
   const selectedRowId = useSelectedRowId();
   const readOnly = useReadOnly();
@@ -43,6 +51,20 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
   );
 
   if (!style) return null;
+
+  // A stale continuation whose rows were deleted: nothing left to show here.
+  if (fragment?.isContinuation && fragment.rowStart >= allRowIds.length) {
+    return null;
+  }
+
+  // Infinity end = open final fragment; slice clamps itself.
+  const rowIds = fragment
+    ? allRowIds.slice(fragment.rowStart, fragment.rowEnd)
+    : allRowIds;
+  // Title/column chrome rides the first fragment; Add Row rides the last.
+  const showHeader = !fragment?.isContinuation;
+  const showFooter =
+    !fragment || fragment.rowEnd === Infinity || fragment.rowEnd >= allRowIds.length;
 
   const handleDragEnd = (event: DragEndEvent): void => {
     const { active, over } = event;
@@ -62,14 +84,21 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
       cellSpacing={0}
     >
       <colgroup>
-        <col data-editor-only="true" style={{ width: readOnly ? 0 : 28 }} />
+        {/* The drag-handle column must not exist in the DOM in readOnly/PDF
+            mode — even a 0-width col disrupts table-layout:fixed and causes
+            the remaining columns to misalign and overflow. */}
+        {!readOnly && (
+          <col style={{ width: 28 }} />
+        )}
         {columns.map((column) => (
           <col key={column.id} style={{ width: `${column.width}px` }} />
         ))}
       </colgroup>
-      <thead>
+      <thead data-table-header="true">
         <tr>
-          <th data-editor-only="true" style={{ borderBottom: headerBorder }} />
+          {!readOnly && (
+            <th style={{ borderBottom: headerBorder }} />
+          )}
           {columns.map((column) => (
             <th
               key={column.id}
@@ -108,7 +137,12 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
           ))}
         </tr>
       </thead>
-      <tbody style={{ counterReset: `row-num ${startNumber}` }}>
+      <tbody
+        data-table-body="true"
+        // Continuations resume the CSS row-number counter where the previous
+        // fragment left off, so numbers run continuously across pages.
+        style={{ counterReset: `row-num ${startNumber + (fragment?.rowStart ?? 0)}` }}
+      >
         {rowIds.map((rowId) => (
           <TableRowView
             key={rowId}
@@ -125,55 +159,63 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
 
   return (
     <div className="rounded-xl border border-line bg-white p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-600 text-white">
-            <Table2 size={15} />
-          </span>
-          {readOnly ? (
-            <span className="truncate text-[13px] font-semibold tracking-wide text-ink-900">
-              {title}
+      {showHeader ? (
+        <div
+          data-table-title="true"
+          className="mb-3 flex items-center justify-between gap-3"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-600 text-white">
+              <Table2 size={15} />
             </span>
-          ) : (
-            <InlineText
-              value={title}
-              ariaLabel="Table title"
-              className="min-w-0 flex-1 rounded-md bg-transparent px-1.5 py-0.5 text-[13px] font-semibold tracking-wide text-ink-900 outline-none transition hover:bg-slate-100 focus:bg-white focus:ring-2 focus:ring-brand-100"
-              onCommit={(next) =>
-                useEditorStore.getState().updateTableTitle(blockId, next)
-              }
-            />
-          )}
-        </div>
-
-        {!readOnly ? (
-          <div
-            className="flex shrink-0 items-center gap-2"
-            data-editor-only="true"
-          >
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-[12px] font-medium text-brand-700 transition hover:bg-brand-100"
-              onClick={() => useEditorStore.getState().addColumn(blockId)}
-            >
-              <Plus size={13} /> Add Column
-            </button>
-            <button
-              type="button"
-              aria-label="Delete column"
-              className="rounded-lg border border-line p-1.5 text-ink-400 transition hover:border-red-200 hover:text-red-600"
-              onClick={() => useEditorStore.getState().deleteColumn(blockId)}
-            >
-              <Trash2 size={14} />
-            </button>
+            {readOnly ? (
+              <span className="truncate text-[13px] font-semibold tracking-wide text-ink-900">
+                {title}
+              </span>
+            ) : (
+              <InlineText
+                value={title}
+                ariaLabel="Table title"
+                className="min-w-0 flex-1 rounded-md bg-transparent px-1.5 py-0.5 text-[13px] font-semibold tracking-wide text-ink-900 outline-none transition hover:bg-slate-100 focus:bg-white focus:ring-2 focus:ring-brand-100"
+                onCommit={(next) =>
+                  useEditorStore.getState().updateTableTitle(blockId, next)
+                }
+              />
+            )}
           </div>
-        ) : null}
-      </div>
 
-      <div className="overflow-x-auto">
-        {readOnly ? (
-          table
-        ) : (
+          {!readOnly ? (
+            <div
+              className="flex shrink-0 items-center gap-2"
+              data-editor-only="true"
+            >
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-[12px] font-medium text-brand-700 transition hover:bg-brand-100"
+                onClick={() => useEditorStore.getState().addColumn(blockId)}
+              >
+                <Plus size={13} /> Add Column
+              </button>
+              <button
+                type="button"
+                aria-label="Delete column"
+                className="rounded-lg border border-line p-1.5 text-ink-400 transition hover:border-red-200 hover:text-red-600"
+                onClick={() => useEditorStore.getState().deleteColumn(blockId)}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* overflow-x:auto is only needed in the interactive editor so the user
+          can scroll wide tables. In readOnly/PDF mode it acts as a clipping
+          container for html2canvas, cutting off the table header and title. */}
+      {readOnly ? (
+        table
+      ) : (
+        <div className="overflow-x-auto">
           <DndContext
             // Deterministic id keeps dnd-kit's aria-describedby stable (no hydration mismatch).
             id={`table-rows-${blockId}`}
@@ -189,10 +231,10 @@ function TableBlockViewImpl({ blockId }: { blockId: string }) {
               {table}
             </SortableContext>
           </DndContext>
-        )}
-      </div>
+        </div>
+      )}
 
-      {!readOnly ? (
+      {!readOnly && showFooter ? (
         <div className="mt-3" data-editor-only="true">
           <button
             type="button"

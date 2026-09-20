@@ -53,13 +53,12 @@ function TableRowViewImpl({
   const cellBorder = `${style.borderWidth}px solid ${style.borderColor}`;
 
   return (
-    <tr ref={setNodeRef} style={rowStyle}>
-      <td
-        data-editor-only="true"
-        className="w-7 align-middle"
-        style={{ borderBottom: cellBorder }}
-      >
-        {!readOnly ? (
+    <tr ref={setNodeRef} data-row-id={rowId} style={rowStyle}>
+      {/* The drag-handle cell must be absent in readOnly/PDF — it is the row
+          counterpart to the col/th removed in TableBlockView. Keeping it (even
+          hidden) adds a phantom column that breaks table-layout:fixed. */}
+      {!readOnly && (
+        <td className="w-7 align-middle" style={{ borderBottom: cellBorder }}>
           <button
             type="button"
             aria-label="Reorder row"
@@ -69,8 +68,8 @@ function TableRowViewImpl({
           >
             <GripVertical size={14} />
           </button>
-        ) : null}
-      </td>
+        </td>
+      )}
 
       {columns.map((column) => {
         const override = row.cellStyles?.[column.id];
