@@ -188,7 +188,7 @@ function BlockFrameImpl({
       <div
         role="presentation"
         onPointerDown={() => useEditorStore.getState().selectBlock(blockId)}
-        className={`rounded-lg outline-offset-2 transition ${
+        className={`rounded-lg p-1 outline-offset-2 transition ${
           selected
             ? 'outline outline-2 outline-brand-500'
             : 'outline outline-1 outline-transparent hover:outline-brand-200'

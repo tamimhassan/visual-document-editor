@@ -64,7 +64,9 @@ function TableBlockViewImpl({
   // Title/column chrome rides the first fragment; Add Row rides the last.
   const showHeader = !fragment?.isContinuation;
   const showFooter =
-    !fragment || fragment.rowEnd === Infinity || fragment.rowEnd >= allRowIds.length;
+    !fragment ||
+    fragment.rowEnd === Infinity ||
+    fragment.rowEnd >= allRowIds.length;
 
   const handleDragEnd = (event: DragEndEvent): void => {
     const { active, over } = event;
@@ -84,21 +86,14 @@ function TableBlockViewImpl({
       cellSpacing={0}
     >
       <colgroup>
-        {/* The drag-handle column must not exist in the DOM in readOnly/PDF
-            mode — even a 0-width col disrupts table-layout:fixed and causes
-            the remaining columns to misalign and overflow. */}
-        {!readOnly && (
-          <col style={{ width: 28 }} />
-        )}
+        {!readOnly ? <col style={{ width: 28 }} /> : null}
         {columns.map((column) => (
           <col key={column.id} style={{ width: `${column.width}px` }} />
         ))}
       </colgroup>
       <thead data-table-header="true">
         <tr>
-          {!readOnly && (
-            <th style={{ borderBottom: headerBorder }} />
-          )}
+          {!readOnly ? <th style={{ borderBottom: headerBorder }} /> : null}
           {columns.map((column) => (
             <th
               key={column.id}
@@ -112,6 +107,8 @@ function TableBlockViewImpl({
                 textAlign: column.align,
                 fontSize: `${style.fontSize}px`,
                 fontWeight: 600,
+                verticalAlign: 'middle',
+                lineHeight: 1.4,
               }}
             >
               {readOnly || column.role === 'rowNumber' ? (
@@ -137,17 +134,13 @@ function TableBlockViewImpl({
           ))}
         </tr>
       </thead>
-      <tbody
-        data-table-body="true"
-        // Continuations resume the CSS row-number counter where the previous
-        // fragment left off, so numbers run continuously across pages.
-        style={{ counterReset: `row-num ${startNumber + (fragment?.rowStart ?? 0)}` }}
-      >
-        {rowIds.map((rowId) => (
+      <tbody data-table-body="true">
+        {rowIds.map((rowId, index) => (
           <TableRowView
             key={rowId}
             blockId={blockId}
             rowId={rowId}
+            displayNumber={startNumber + (fragment?.rowStart ?? 0) + index + 1}
             columns={columns}
             style={style}
             selected={rowId === selectedRowId}
@@ -158,18 +151,52 @@ function TableBlockViewImpl({
   );
 
   return (
-    <div className="rounded-xl border border-line bg-white p-4">
+    <div
+      className="border border-line bg-white p-4"
+      style={{ borderRadius: '12px', overflow: 'visible' }}
+    >
       {showHeader ? (
         <div
           data-table-title="true"
-          className="mb-3 flex items-center justify-between gap-3"
+          className="mb-3 flex items-center justify-between"
+          style={{ alignItems: 'center' }}
         >
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-600 text-white">
+          <div
+            className="flex flex-1 items-center"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              minWidth: 0,
+            }}
+          >
+            <span
+              className="flex shrink-0 items-center justify-center bg-brand-600 text-white"
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                backgroundColor: '#2563EB',
+                color: '#ffffff',
+              }}
+            >
               <Table2 size={15} />
             </span>
             {readOnly ? (
-              <span className="truncate text-[13px] font-semibold tracking-wide text-ink-900">
+              <span
+                className="text-[13px] font-semibold tracking-wide text-ink-900"
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#0F172A',
+                  overflow: 'visible',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {title}
               </span>
             ) : (
@@ -209,13 +236,10 @@ function TableBlockViewImpl({
         </div>
       ) : null}
 
-      {/* overflow-x:auto is only needed in the interactive editor so the user
-          can scroll wide tables. In readOnly/PDF mode it acts as a clipping
-          container for html2canvas, cutting off the table header and title. */}
-      {readOnly ? (
-        table
-      ) : (
-        <div className="overflow-x-auto">
+      <div className="overflow-x-auto">
+        {readOnly ? (
+          table
+        ) : (
           <DndContext
             // Deterministic id keeps dnd-kit's aria-describedby stable (no hydration mismatch).
             id={`table-rows-${blockId}`}
@@ -231,8 +255,8 @@ function TableBlockViewImpl({
               {table}
             </SortableContext>
           </DndContext>
-        </div>
-      )}
+        )}
+      </div>
 
       {!readOnly && showFooter ? (
         <div className="mt-3" data-editor-only="true">

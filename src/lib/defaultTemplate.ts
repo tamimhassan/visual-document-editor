@@ -3,7 +3,7 @@ import type {
   Block,
   DocumentModel,
   ImageBlock,
-  Page,
+  PageBreakBlock,
   ShapeBlock,
   TableBlock,
   TextBlock,
@@ -130,6 +130,17 @@ export function createShapeBlock(
     height: 60,
     radius: 8,
     ...partial,
+  };
+}
+
+/** A manual page break inserted into the flat block stream ("Add Page"). */
+export function createPageBreakBlock(): PageBreakBlock {
+  return {
+    id: createId('break'),
+    kind: 'pagebreak',
+    widthPercent: 100,
+    indentLeft: 0,
+    marginBottom: 0,
   };
 }
 
@@ -346,14 +357,10 @@ function defaultBlocks(): Block[] {
   ];
 }
 
-export function createEmptyPage(): Page {
-  return { id: createId('page'), blocks: [] };
-}
-
 /** The document shown the very first time the app is opened. */
 export function createDefaultDocument(): DocumentModel {
   return {
     projectName: 'Document Project V1',
-    pages: [{ id: 'page_default', blocks: defaultBlocks() }],
+    blocks: defaultBlocks(),
   };
 }

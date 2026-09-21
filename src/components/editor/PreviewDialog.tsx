@@ -4,13 +4,13 @@ import { X } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { useEditorStore } from '@/store/editorStore';
-import { usePageIds } from '@/store/selectors';
+import { useComputedPageCount } from '@/store/selectors';
 import { CanvasSheet } from './canvas/CanvasSheet';
 import { ReadOnlyContext } from './canvas/readOnly';
 
 export function PreviewDialog() {
   const open = useEditorStore((state) => state.previewOpen);
-  const pageIds = usePageIds();
+  const pageCount = useComputedPageCount();
 
   useEffect(() => {
     if (!open) return;
@@ -46,8 +46,8 @@ export function PreviewDialog() {
       <div className='flex-1 overflow-auto px-6 pb-10'>
         <div className='mx-auto flex w-fit flex-col gap-6'>
           <ReadOnlyContext.Provider value={true}>
-            {pageIds.map((pageId) => (
-              <CanvasSheet key={pageId} pageId={pageId} />
+            {Array.from({ length: pageCount }, (_, index) => (
+              <CanvasSheet key={index} pageIndex={index} />
             ))}
           </ReadOnlyContext.Provider>
         </div>

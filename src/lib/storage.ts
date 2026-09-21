@@ -1,3 +1,4 @@
+import { createPageBreakBlock } from '@/lib/defaultTemplate';
 import type { SavedTemplate } from '@/lib/types';
 
 const STORAGE_KEY = 'vde.templates';
@@ -27,8 +28,43 @@ function isSavedTemplate(value: unknown): value is SavedTemplate {
     typeof candidate.updatedAt === 'string' &&
     typeof candidate.document === 'object' &&
     candidate.document !== null &&
-    Array.isArray(candidate.document.pages)
+    Array.isArray(candidate.document.blocks)
   );
+}
+
+/**
+ * Upgrades a document saved by the pre-computed-pagination versions, where
+ * blocks lived inside stored `pages`: flatten to one ordered block list with
+ * an explicit page-break block between pages, so the authored structure (and
+ * any row-split continuation tables, which flatten as-is) is preserved.
+ */
+function migrateDocument(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  const document = value as {
+    projectName?: unknown;
+    blocks?: unknown;
+    pages?: { blocks?: unknown[] }[];
+  };
+  if (Array.isArray(document.blocks) || !Array.isArray(document.pages)) {
+    return value;
+  }
+
+  const blocks: unknown[] = [];
+  document.pages.forEach((page, index) => {
+    if (index > 0) blocks.push(createPageBreakBlock());
+    if (Array.isArray(page?.blocks)) blocks.push(...page.blocks);
+  });
+
+  return { projectName: document.projectName, blocks };
+}
+
+function migrateTemplate(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  const template = value as { document?: unknown };
+  if (typeof template.document !== 'object' || template.document === null) {
+    return value;
+  }
+  return { ...template, document: migrateDocument(template.document) };
 }
 
 /**
@@ -70,7 +106,7 @@ export function readTemplateStore(): TemplateStore {
     // Legacy shape (written before explicit defaults): a bare template array.
     // The implicit default it carried becomes the explicit one.
     if (Array.isArray(parsed)) {
-      const templates = parsed.filter(isSavedTemplate);
+      const templates = parsed.map(migrateTemplate).filter(isSavedTemplate);
       return healDefault({
         defaultTemplateId: legacyDefault(templates),
         templates,
@@ -81,7 +117,7 @@ export function readTemplateStore(): TemplateStore {
 
     const candidate = parsed as Partial<TemplateStore>;
     const templates = Array.isArray(candidate.templates)
-      ? candidate.templates.filter(isSavedTemplate)
+      ? candidate.templates.map(migrateTemplate).filter(isSavedTemplate)
       : [];
     const defaultTemplateId =
       typeof candidate.defaultTemplateId === 'string'

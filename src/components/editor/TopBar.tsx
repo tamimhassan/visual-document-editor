@@ -41,8 +41,16 @@ export function TopBar() {
     const store = useEditorStore.getState();
     store.setExporting(true);
     try {
-      await exportActiveDocumentToPdf(projectName || 'document');
-      showToast('PDF downloaded');
+      const result = await exportActiveDocumentToPdf(projectName, {});
+
+      if (result.overflowedPages.length > 0) {
+        showToast(
+          `Page${result.overflowedPages.length > 1 ? 's' : ''} ${result.overflowedPages.join(', ')} had content too tall to fit and may be cut off in the PDF.`,
+          'warning',
+        );
+      } else {
+        showToast('PDF downloaded', 'success');
+      }
     } catch (error) {
       // Previously failures only surfaced as unhandled promise rejections.
       console.error('PDF export failed', error);
@@ -53,23 +61,23 @@ export function TopBar() {
   };
 
   return (
-    <header className='flex h-16 items-center gap-4 border-b border-line bg-white px-4'>
-      <div className='flex items-center gap-3'>
-        <span className='flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white'>
+    <header className="flex h-16 items-center gap-4 border-b border-line bg-white px-4">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
           <FileText size={18} />
         </span>
-        <h1 className='whitespace-nowrap text-[17px] font-semibold text-ink-900'>
+        <h1 className="whitespace-nowrap text-[17px] font-semibold text-ink-900">
           Document Editor (PoC)
         </h1>
       </div>
 
-      <label className='ml-4 w-[300px] max-w-[34vw]'>
-        <span className='mb-0.5 block text-[11px] text-ink-400'>
+      <label className="ml-4 w-[300px] max-w-[34vw]">
+        <span className="mb-0.5 block text-[11px] text-ink-400">
           Project Name
         </span>
         <input
-          className='h-9 w-full rounded-lg border border-line bg-white px-3 text-[13px] outline-none
-                     transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100'
+          className="h-9 w-full rounded-lg border border-line bg-white px-3 text-[13px] outline-none
+                     transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => useEditorStore.getState().setProjectName(draft)}
@@ -79,24 +87,24 @@ export function TopBar() {
         />
       </label>
 
-      <div className='flex items-center gap-1'>
+      <div className="flex items-center gap-1">
         <Button
-          variant='ghost'
-          aria-label='Undo'
+          variant="ghost"
+          aria-label="Undo"
           disabled={!canUndo}
           onClick={() => useEditorStore.getState().undo()}
           icon={<Undo2 size={17} />}
         />
         <Button
-          variant='ghost'
-          aria-label='Redo'
+          variant="ghost"
+          aria-label="Redo"
           disabled={!canRedo}
           onClick={() => useEditorStore.getState().redo()}
           icon={<Redo2 size={17} />}
         />
       </div>
 
-      <div className='ml-auto flex items-center gap-2'>
+      <div className="ml-auto flex items-center gap-2">
         <Button
           icon={<Eye size={16} />}
           onClick={() => useEditorStore.getState().setPreviewOpen(true)}
@@ -105,22 +113,22 @@ export function TopBar() {
         </Button>
 
         <Button
-          variant='outline'
-          className='border-brand-200 text-brand-700'
+          variant="outline"
+          className="border-brand-200 text-brand-700"
           icon={<Save size={16} />}
           onClick={handleSave}
         >
           {justSaved ? 'Saved' : 'Save'}
           {dirty && !justSaved ? (
             <span
-              aria-label='Unsaved changes'
-              className='ml-0.5 h-1.5 w-1.5 rounded-full bg-brand-600'
+              aria-label="Unsaved changes"
+              className="ml-0.5 h-1.5 w-1.5 rounded-full bg-brand-600"
             />
           ) : null}
         </Button>
 
         <Button
-          variant='primary'
+          variant="primary"
           icon={<Download size={16} />}
           disabled={exporting}
           onClick={() => void handleExport()}

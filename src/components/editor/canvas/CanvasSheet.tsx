@@ -11,18 +11,14 @@ import {
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { memo } from 'react';
 
+import { SHEET_MIN_HEIGHT, SHEET_PADDING, SHEET_WIDTH } from '@/lib/pagination';
 import { useEditorStore } from '@/store/editorStore';
-import { usePageBlockIds } from '@/store/selectors';
+import { usePageFragments } from '@/store/selectors';
 import { BlockFrame } from './BlockFrame';
 import { useReadOnly } from './readOnly';
 
-// A4 at 96dpi, so the exported PDF matches what is on screen.
-export const SHEET_WIDTH = 794;
-export const SHEET_MIN_HEIGHT = 1123;
-export const SHEET_PADDING = 48;
-
-function CanvasSheetImpl({ pageId }: { pageId: string }) {
-  const blockIds = usePageBlockIds(pageId);
+function CanvasSheetImpl({ pageIndex }: { pageIndex: number }) {
+  const fragments = usePageFragments(pageIndex);
   const readOnly = useReadOnly();
 
   const sensors = useSensors(
@@ -37,11 +33,15 @@ function CanvasSheetImpl({ pageId }: { pageId: string }) {
 
   const content = (
     <div className="flex flex-wrap items-start">
-      {blockIds.map((blockId) => (
-        <BlockFrame key={blockId} blockId={blockId} />
+      {fragments.map((fragment) => (
+        <BlockFrame
+          key={fragment.blockId}
+          blockId={fragment.blockId}
+          fragment={fragment}
+        />
       ))}
 
-      {blockIds.length === 0 && !readOnly ? (
+      {fragments.length === 0 && !readOnly ? (
         <p className="w-full py-24 text-center text-[13px] text-ink-400">
           This page is empty. Add a text block or a table from the left panel.
         </p>
@@ -51,7 +51,7 @@ function CanvasSheetImpl({ pageId }: { pageId: string }) {
 
   return (
     <div
-      data-pdf-page={pageId}
+      data-pdf-page={`page-${pageIndex}`}
       className="relative bg-white shadow-sheet"
       style={{
         width: `${SHEET_WIDTH}px`,
@@ -69,12 +69,15 @@ function CanvasSheetImpl({ pageId }: { pageId: string }) {
       ) : (
         <DndContext
           // Deterministic id keeps dnd-kit's aria-describedby stable (no hydration mismatch).
-          id={`canvas-${pageId}`}
+          id={`canvas-page-${pageIndex}`}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext items={blockIds} strategy={rectSortingStrategy}>
+          <SortableContext
+            items={fragments.map((fragment) => fragment.blockId)}
+            strategy={rectSortingStrategy}
+          >
             {content}
           </SortableContext>
         </DndContext>

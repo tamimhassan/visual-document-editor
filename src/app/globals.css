@@ -62,8 +62,21 @@ body {
   display: none !important;
 }
 
-/* Toast entrance: a small slide-and-fade, disabled by the global
-   prefers-reduced-motion clamp near the top of this file. */
+.pdf-capture .overflow-x-auto {
+  overflow: visible !important;
+}
+
+.pdf-capture .truncate {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+.pdf-capture .min-w-0 {
+  min-width: unset !important;
+}
+
+/* Toast entrance */
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -77,11 +90,4 @@ body {
 
 .toast-in {
   animation: toast-in 160ms ease-out;
-}
-
-/* Table row numbers are a CSS counter over DOM order (each tbody resets it to
-   the table's startNumber). Reordering rows then corrects every number purely
-   through CSS, without re-rendering the row components. */
-.row-number::before {
-  content: counter(row-num);
 }

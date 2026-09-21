@@ -7,7 +7,7 @@ import type {
   Block,
   CellStyleOverride,
   ImageBlock,
-  Page,
+  PageFragment,
   ShapeBlock,
   TableColumn,
   TableRow,
@@ -29,33 +29,14 @@ export function useActiveTab<T>(selector: (tab: Tab | undefined) => T): T {
   );
 }
 
-export function useActivePage(): Page | undefined {
-  return useActiveTab((tab) =>
-    tab?.document.pages.find((page) => page.id === tab.activePageId),
-  );
-}
-
-export function useBlockIds(): string[] {
-  return useEditorStore(
-    useShallow((state) => {
-      const tab = findActiveTab(state.tabs, state.activeTabId);
-      const page = tab?.document.pages.find(
-        (item) => item.id === tab.activePageId,
-      );
-      return page ? page.blocks.map((block) => block.id) : [];
-    }),
-  );
+/** Flat-list block lookup — pages are computed, blocks are the stored truth. */
+function findBlock(tab: Tab | undefined, blockId: string): Block | undefined {
+  if (!tab) return undefined;
+  return tab.document.blocks.find((item) => item.id === blockId);
 }
 
 export function useBlock(blockId: string): Block | undefined {
-  return useActiveTab((tab) => {
-    if (!tab) return undefined;
-    for (const page of tab.document.pages) {
-      const block = page.blocks.find((item) => item.id === blockId);
-      if (block) return block;
-    }
-    return undefined;
-  });
+  return useActiveTab((tab) => findBlock(tab, blockId));
 }
 
 export function useTextBlock(blockId: string): TextBlock | undefined {
@@ -90,7 +71,7 @@ export function useSelectedRowId(): string | null {
   return useActiveTab((tab) => tab?.selection.rowId ?? null);
 }
 
-/** Row-number offset of a (possibly split) table, for continuing numbering. */
+/** Row-number offset carried by split-era continuation tables (migrated data). */
 export function useTableStartNumber(blockId: string): number {
   return useActiveTab((tab) => findTable(tab, blockId)?.startNumber ?? 0);
 }
@@ -100,48 +81,27 @@ export function useSelectedColumnId(): string | null {
 }
 
 export function useSelectedBlock(): Block | undefined {
-  return useActiveTab((tab) => {
-    if (!tab || !tab.selection.blockId) return undefined;
-    for (const page of tab.document.pages) {
-      const block = page.blocks.find(
-        (item) => item.id === tab.selection.blockId,
-      );
-      if (block) return block;
-    }
-    return undefined;
-  });
+  return useActiveTab((tab) =>
+    tab?.selection.blockId ? findBlock(tab, tab.selection.blockId) : undefined,
+  );
 }
 
 export function useTableRow(
   blockId: string,
   rowId: string,
 ): Record<string, string> | undefined {
-  return useActiveTab((tab) => {
-    if (!tab) return undefined;
-    for (const page of tab.document.pages) {
-      const block = page.blocks.find((item) => item.id === blockId);
-      if (block && block.kind === 'table') {
-        return block.rows.find((row) => row.id === rowId)?.cells;
-      }
-    }
-    return undefined;
-  });
+  return useActiveTab((tab) =>
+    findTable(tab, blockId)?.rows.find((row) => row.id === rowId)?.cells,
+  );
 }
 
 export function useTableRowData(
   blockId: string,
   rowId: string,
 ): TableRow | undefined {
-  return useActiveTab((tab) => {
-    if (!tab) return undefined;
-    for (const page of tab.document.pages) {
-      const block = page.blocks.find((item) => item.id === blockId);
-      if (block && block.kind === 'table') {
-        return block.rows.find((row) => row.id === rowId);
-      }
-    }
-    return undefined;
-  });
+  return useActiveTab((tab) =>
+    findTable(tab, blockId)?.rows.find((row) => row.id === rowId),
+  );
 }
 
 /** Sparse per-cell override for one cell; undefined = fully inherited. */
@@ -150,18 +110,11 @@ export function useCellStyleOverride(
   rowId: string,
   columnId: string,
 ): CellStyleOverride | undefined {
-  return useActiveTab((tab) => {
-    if (!tab) return undefined;
-    for (const page of tab.document.pages) {
-      const block = page.blocks.find((item) => item.id === blockId);
-      if (block && block.kind === 'table') {
-        return block.rows.find((row) => row.id === rowId)?.cellStyles?.[
-          columnId
-        ];
-      }
-    }
-    return undefined;
-  });
+  return useActiveTab((tab) =>
+    findTable(tab, blockId)?.rows.find((row) => row.id === rowId)?.cellStyles?.[
+      columnId
+    ],
+  );
 }
 
 export function useTableColumn(
@@ -179,12 +132,8 @@ function findTable(
   tab: Tab | undefined,
   blockId: string,
 ): TableBlock | undefined {
-  if (!tab) return undefined;
-  for (const page of tab.document.pages) {
-    const block = page.blocks.find((item) => item.id === blockId);
-    if (block && block.kind === 'table') return block;
-  }
-  return undefined;
+  const block = findBlock(tab, blockId);
+  return block && block.kind === 'table' ? block : undefined;
 }
 
 export function useTableRowIds(blockId: string): string[] {
@@ -226,16 +175,7 @@ export function useBlockLayout(blockId: string): BlockLayoutSlice {
   return useEditorStore(
     useShallow((state) => {
       const tab = findActiveTab(state.tabs, state.activeTabId);
-      let target: Block | undefined;
-      if (tab) {
-        for (const page of tab.document.pages) {
-          const found = page.blocks.find((item) => item.id === blockId);
-          if (found) {
-            target = found;
-            break;
-          }
-        }
-      }
+      const target = findBlock(tab, blockId);
       return {
         kind: target?.kind ?? null,
         widthPercent: target?.widthPercent ?? 100,
@@ -246,56 +186,43 @@ export function useBlockLayout(blockId: string): BlockLayoutSlice {
   );
 }
 
-export function usePageBlockIds(pageId: string): string[] {
+/** How many computed pages the active document currently paginates into. */
+export function useComputedPageCount(): number {
+  return useActiveTab((tab) => tab?.computedPages.length ?? 0);
+}
+
+/** Block fragments of one computed page, by index. Reference-stable per page. */
+export function usePageFragments(pageIndex: number): PageFragment[] {
   return useEditorStore(
     useShallow((state) => {
       const tab = findActiveTab(state.tabs, state.activeTabId);
-      const page = tab?.document.pages.find((item) => item.id === pageId);
-      return page ? page.blocks.map((block) => block.id) : [];
+      return tab?.computedPages[pageIndex] ?? [];
     }),
   );
 }
 
-export function usePageIds(): string[] {
-  return useEditorStore(
-    useShallow((state) => {
-      const tab = findActiveTab(state.tabs, state.activeTabId);
-      return tab ? tab.document.pages.map((page) => page.id) : [];
-    }),
-  );
-}
-
-/** Block kinds only — enough to paint a page thumbnail without re-rendering it on every keystroke. */
-export function usePageBlockKinds(pageId: string): Block['kind'][] {
-  return useEditorStore(
-    useShallow((state) => {
-      const tab = findActiveTab(state.tabs, state.activeTabId);
-      const page = tab?.document.pages.find((item) => item.id === pageId);
-      return page ? page.blocks.map((block) => block.kind) : [];
-    }),
-  );
+/** True when the given computed page starts with an explicit page break. */
+export function usePageStartsWithBreak(pageIndex: number): boolean {
+  return useEditorStore((state) => {
+    const tab = findActiveTab(state.tabs, state.activeTabId);
+    if (!tab || pageIndex <= 0) return false;
+    const previous = tab.computedPages[pageIndex - 1];
+    const lastId = previous?.[previous.length - 1]?.blockId;
+    if (!lastId) return false;
+    return findBlock(tab, lastId)?.kind === 'pagebreak';
+  });
 }
 
 export function useSelectedBlockKind(): Block['kind'] | null {
   return useActiveTab((tab) => {
-    if (!tab || !tab.selection.blockId) return null;
-    for (const page of tab.document.pages) {
-      const block = page.blocks.find(
-        (item) => item.id === tab.selection.blockId,
-      );
-      if (block) return block.kind;
-    }
-    return null;
+    if (!tab?.selection.blockId) return null;
+    return findBlock(tab, tab.selection.blockId)?.kind ?? null;
   });
 }
 
 export function useTextStyle(blockId: string): TextBlock['style'] | undefined {
   return useActiveTab((tab) => {
-    if (!tab) return undefined;
-    for (const page of tab.document.pages) {
-      const block = page.blocks.find((item) => item.id === blockId);
-      if (block && block.kind === 'text') return block.style;
-    }
-    return undefined;
+    const block = findBlock(tab, blockId);
+    return block && block.kind === 'text' ? block.style : undefined;
   });
 }

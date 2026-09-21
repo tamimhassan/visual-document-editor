@@ -9,12 +9,17 @@ function ImageBlockViewImpl({ blockId }: { blockId: string }) {
   if (!block) return null;
 
   return (
-    <img
-      src={block.src}
-      alt={block.alt}
-      style={{ height: `${block.height}px`, objectFit: block.fit }}
+    <div
+      role="img"
+      aria-label={block.alt}
       className="w-full"
-      draggable={false}
+      style={{
+        height: `${block.height}px`,
+        backgroundImage: `url(${block.src})`,
+        backgroundSize: block.fit, // "contain" | "cover" — same values as object-fit
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
     />
   );
 }

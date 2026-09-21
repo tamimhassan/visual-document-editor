@@ -1,4 +1,4 @@
-import { SHEET_MIN_HEIGHT } from '@/lib/pagination';
+import { SHEET_MIN_HEIGHT, SHEET_WIDTH } from '@/lib/pagination';
 
 interface SaveFilePickerOptions {
   suggestedName?: string;
@@ -23,7 +23,7 @@ declare global {
 }
 
 async function imageReady(image: HTMLImageElement): Promise<void> {
-  if (image.complete) return;
+  if (image.complete && image.naturalWidth > 0) return;
   await new Promise<void>((resolve) => {
     image.addEventListener('load', () => resolve(), { once: true });
     image.addEventListener('error', () => resolve(), { once: true });
@@ -31,6 +31,7 @@ async function imageReady(image: HTMLImageElement): Promise<void> {
 }
 
 async function waitForRender(root: HTMLElement): Promise<void> {
+  // Two rAF passes let React finish any pending paint.
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
@@ -64,56 +65,99 @@ async function buildPdfBlob(
   if (!root)
     throw new Error('Nothing to export: the export surface is missing');
 
-  await waitForRender(root);
+  const cage = document.createElement('div');
+  cage.setAttribute('aria-hidden', 'true');
+  cage.style.cssText = [
+    'position:absolute',
+    `top:${document.documentElement.scrollHeight + 400}px`,
+    'left:0',
+    `width:${SHEET_WIDTH}px`,
+    'overflow:visible',
+    'pointer-events:none',
+    'z-index:-1',
+  ].join(';');
+  document.body.appendChild(cage);
 
-  const sheets = Array.from(
-    root.querySelectorAll<HTMLElement>('[data-pdf-page]'),
-  );
-  if (sheets.length === 0) throw new Error('Nothing to export: no pages');
+  // Save the root's original position in the DOM so we can restore it.
+  const prevParent = root.parentElement;
+  const prevNextSib = root.nextSibling;
 
-  const pdf = new jsPDF({ unit: 'px', format: 'a4', orientation: 'portrait' });
-  const pageWidth = pdf.internal.pageSize.getWidth();
+  // Save and override the root's inline positioning styles.
+  const prevPosition = root.style.position;
+  const prevTop = root.style.top;
+  const prevLeft = root.style.left;
+  const prevOpacity = root.style.opacity;
+  const prevZIndex = root.style.zIndex;
 
-  const overflowedPages: number[] = [];
+  root.style.position = 'relative';
+  root.style.top = '0px';
+  root.style.left = '0px';
+  root.style.opacity = '1';
+  root.style.zIndex = 'auto';
 
-  for (let index = 0; index < sheets.length; index += 1) {
-    const sheet = sheets[index];
-    if (!sheet) continue;
+  cage.appendChild(root);
 
-    const realHeight = sheet.getBoundingClientRect().height;
-    if (realHeight > SHEET_MIN_HEIGHT + OVERFLOW_TOLERANCE_PX) {
-      overflowedPages.push(index + 1);
+  try {
+    await waitForRender(root);
+
+    const sheets = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-pdf-page]'),
+    );
+    if (sheets.length === 0) throw new Error('Nothing to export: no pages');
+
+    const pdf = new jsPDF({
+      unit: 'px',
+      format: 'a4',
+      orientation: 'portrait',
+    });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+
+    const overflowedPages: number[] = [];
+
+    for (let index = 0; index < sheets.length; index += 1) {
+      const sheet = sheets[index];
+      if (!sheet) continue;
+
+      const realHeight = sheet.getBoundingClientRect().height;
+      if (realHeight > SHEET_MIN_HEIGHT + OVERFLOW_TOLERANCE_PX) {
+        overflowedPages.push(index + 1);
+      }
+
+      const canvas = await html2canvas(sheet, {
+        scale: 2,
+        backgroundColor: '#FFFFFF',
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        // No scrollX/scrollY needed — the cage is in the document flow so
+        // html2canvas finds it via normal getBoundingClientRect offsets.
+      });
+
+      const imageData = canvas.toDataURL('image/png');
+      const ratio = pageWidth / canvas.width;
+      const imageHeight = canvas.height * ratio;
+
+      if (index > 0) pdf.addPage();
+      pdf.addImage(imageData, 'PNG', 0, 0, pageWidth, imageHeight);
+      // Release canvas memory immediately.
+      canvas.width = 0;
+      canvas.height = 0;
     }
 
-    const canvas = await html2canvas(sheet, {
-      scale: 2,
-      backgroundColor: '#FFFFFF',
-      useCORS: true,
-      logging: false,
-      // The export surface is positioned above the viewport (top:-99999px) so
-      // it stays invisible while rendering. We must tell html2canvas where the
-      // element actually is; using the element's own bounding rect as the
-      // scroll/window context lets it find and rasterize the content correctly.
-      x: 0,
-      y: 0,
-      scrollX: 0,
-      scrollY: -sheet.getBoundingClientRect().top,
-      windowWidth: sheet.scrollWidth,
-      windowHeight: sheet.scrollHeight,
-    });
+    return { blob: pdf.output('blob'), overflowedPages };
+  } finally {
+    // Always restore the root to its original place in the DOM and remove cage.
+    root.style.position = prevPosition;
+    root.style.top = prevTop;
+    root.style.left = prevLeft;
+    root.style.opacity = prevOpacity;
+    root.style.zIndex = prevZIndex;
 
-    const imageData = canvas.toDataURL('image/jpeg', 0.92);
-    const ratio = pageWidth / canvas.width;
-
-    const imageHeight = canvas.height * ratio;
-
-    if (index > 0) pdf.addPage();
-    pdf.addImage(imageData, 'JPEG', 0, 0, pageWidth, imageHeight);
-    canvas.width = 0;
-    canvas.height = 0;
+    if (prevParent) {
+      prevParent.insertBefore(root, prevNextSib);
+    }
+    cage.remove();
   }
-
-  return { blob: pdf.output('blob'), overflowedPages };
 }
 
 export async function exportActiveDocumentToPdf(

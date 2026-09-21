@@ -175,9 +175,11 @@ function TemplateCard({
 
 export function SavedTemplatesPanel() {
   const templates = useEditorStore((state) => state.templates);
-  const defaultTemplateId = useEditorStore(
-    (state) => state.defaultTemplateId,
-  );
+  const defaultTemplateId = useEditorStore((state) => state.defaultTemplateId);
+
+  const handleSaveCurrentAsTemplate = () => {
+    useEditorStore.getState().saveActiveTab(true);
+  };
 
   return (
     <section className="border-t border-line bg-white px-6 py-4">
@@ -199,7 +201,7 @@ export function SavedTemplatesPanel() {
         <Button
           variant="subtle"
           icon={<Plus size={15} />}
-          onClick={() => useEditorStore.getState().saveActiveTab()}
+          onClick={handleSaveCurrentAsTemplate}
         >
           Save Current as Template
         </Button>

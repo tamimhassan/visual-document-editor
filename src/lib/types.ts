@@ -1,4 +1,4 @@
-export type BlockKind = 'text' | 'table' | 'image' | 'shape';
+export type BlockKind = 'text' | 'table' | 'image' | 'shape' | 'pagebreak';
 
 export type TextAlign = 'left' | 'center' | 'right';
 
@@ -90,16 +90,61 @@ export interface ShapeBlock extends BlockBase {
   radius: number;
 }
 
-export type Block = TextBlock | TableBlock | ImageBlock | ShapeBlock;
-
-export interface Page {
-  id: string;
-  blocks: Block[];
+/**
+ * A manual page break: a zero-height marker in the content stream (the
+ * document-editor equivalent of Ctrl+Enter in a word processor). Pagination
+ * always starts a new page right after it; deleting it lets content flow
+ * back together. Renders as nothing in read-only/PDF output.
+ */
+export interface PageBreakBlock extends BlockBase {
+  kind: 'pagebreak';
 }
 
+export type Block =
+  | TextBlock
+  | TableBlock
+  | ImageBlock
+  | ShapeBlock
+  | PageBreakBlock;
+
+/**
+ * One rendered piece of a block on a computed page. Most blocks place whole;
+ * oversized tables and text blocks split across pages instead of jumping to a
+ * fresh page and overflowing it (see lib/pagination.ts):
+ * - table fragments carry a row range [rowStart, rowEnd); the header repeats
+ *   on continuations and row numbers continue across fragments. The final
+ *   fragment's rowEnd is Infinity ("everything from here"), so rows appended
+ *   after pagination stay visible until the next measured repagination.
+ * - text fragments carry a character range [from, to) whose boundaries fall on
+ *   measured line starts, so each slice re-wraps identically at the same
+ *   width. The final fragment's `to` is Infinity likewise.
+ */
+export type PageFragment =
+  | { blockId: string; kind: 'whole' }
+  | {
+      blockId: string;
+      kind: 'table';
+      rowStart: number;
+      rowEnd: number;
+      isContinuation: boolean;
+    }
+  | { blockId: string; kind: 'text'; from: number; to: number };
+
+/** The table fragment flavour of PageFragment (TableBlockView props). */
+export type TableFragment = Extract<PageFragment, { kind: 'table' }>;
+
+/** The text fragment flavour of PageFragment (TextBlockView props). */
+export type TextFragment = Extract<PageFragment, { kind: 'text' }>;
+
+/**
+ * The stored document is ONE flat, ordered block list. Pages are never
+ * stored — they are computed from this list plus measured block heights
+ * (see lib/pagination.ts), the way a browser computes layout instead of
+ * remembering pixel rows.
+ */
 export interface DocumentModel {
   projectName: string;
-  pages: Page[];
+  blocks: Block[];
 }
 
 export interface SavedTemplate {
@@ -108,13 +153,6 @@ export interface SavedTemplate {
   createdAt: string;
   updatedAt: string;
   document: DocumentModel;
-}
-
-export interface PageLayoutEntry {
-  /** id of the block that this pagelayoutentry refers to. */
-  blockId: string;
-  /** list of row id's that belong to this block. */
-  rowIds?: string[];
 }
 
 export interface Selection {
@@ -128,7 +166,14 @@ export interface Tab {
   title: string;
   templateId: string | null;
   document: DocumentModel;
-  activePageId: string;
+  /** Index into the computed page list (see computedPages). */
+  activePageIndex: number;
+  /**
+   * Derived pagination cache: the block fragments rendered on each computed
+   * page, in order. Never persisted, never part of undo history — recomputed
+   * from document.blocks plus measured block geometry whenever either changes.
+   */
+  computedPages: PageFragment[][];
   selection: Selection;
   past: DocumentModel[];
   future: DocumentModel[];

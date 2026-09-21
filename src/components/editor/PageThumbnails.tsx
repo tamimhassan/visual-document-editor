@@ -3,51 +3,51 @@
 import { Plus, X } from 'lucide-react';
 import { memo } from 'react';
 
+import { SHEET_MIN_HEIGHT, SHEET_WIDTH } from '@/lib/pagination';
 import { useEditorStore } from '@/store/editorStore';
-import { useActiveTab, usePageBlockKinds, usePageIds } from '@/store/selectors';
+import {
+  useActiveTab,
+  useComputedPageCount,
+  usePageStartsWithBreak,
+} from '@/store/selectors';
+import { CanvasSheet } from './canvas/CanvasSheet';
+import { ReadOnlyContext } from './canvas/readOnly';
 
-const BAR_HEIGHT: Record<string, number> = {
-  text: 5,
-  table: 26,
-  image: 12,
-  shape: 3,
-};
+const THUMB_WIDTH = 96;
+const THUMB_SCALE = THUMB_WIDTH / SHEET_WIDTH;
+const THUMB_HEIGHT = Math.round(SHEET_MIN_HEIGHT * THUMB_SCALE);
 
 const PageThumb = memo(function PageThumb({
-  pageId,
   index,
   active,
   removable,
 }: {
-  pageId: string;
   index: number;
   active: boolean;
   removable: boolean;
 }) {
-  const kinds = usePageBlockKinds(pageId);
-
   return (
-    <div className='relative'>
+    <div className="relative">
       <button
-        type='button'
+        type="button"
         aria-label={`Go to page ${index + 1}`}
         aria-current={active}
-        className={`h-[124px] w-[96px] overflow-hidden rounded-md border-2 bg-white p-2 text-left transition ${active ? 'border-brand-500' : 'border-white/20 hover:border-white/50'}`}
-        onClick={() => useEditorStore.getState().setActivePage(pageId)}
+        className={`block overflow-hidden rounded-md border-2 bg-white transition ${active ? 'border-brand-500' : 'border-white/20 hover:border-white/50'}`}
+        style={{ width: `${THUMB_WIDTH}px`, height: `${THUMB_HEIGHT}px` }}
+        onClick={() => useEditorStore.getState().setActivePage(index)}
       >
-        <div className='flex flex-col gap-[3px]'>
-          {kinds.slice(0, 12).map((kind, position) => (
-            <span
-              key={`${kind}-${position}`}
-              className={`block rounded-[2px] ${
-                kind === 'table' ? 'bg-brand-100' : 'bg-slate-200'
-              }`}
-              style={{
-                height: `${BAR_HEIGHT[kind] ?? 5}px`,
-                width: kind === 'text' && position % 3 === 0 ? '60%' : '100%',
-              }}
-            />
-          ))}
+        <div
+          aria-hidden
+          className="pointer-events-none"
+          style={{
+            width: `${SHEET_WIDTH}px`,
+            transform: `scale(${THUMB_SCALE})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          <ReadOnlyContext.Provider value={true}>
+            <CanvasSheet pageIndex={index} />
+          </ReadOnlyContext.Provider>
         </div>
       </button>
 
@@ -59,10 +59,11 @@ const PageThumb = memo(function PageThumb({
 
       {removable ? (
         <button
-          type='button'
-          aria-label={`Delete page ${index + 1}`}
-          className='absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-shell-800 text-white/70 transition hover:text-white'
-          onClick={() => useEditorStore.getState().removePage(pageId)}
+          type="button"
+          aria-label={`Remove page break before page ${index + 1}`}
+          title="Remove the page break that starts this page"
+          className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-shell-800 text-white/70 transition hover:text-white"
+          onClick={() => useEditorStore.getState().removePageBreak(index)}
         >
           <X size={12} />
         </button>
@@ -71,30 +72,42 @@ const PageThumb = memo(function PageThumb({
   );
 });
 
+/** Only pages that start with an explicit break can be "removed". */
+const PageThumbWithBreak = memo(function PageThumbWithBreak({
+  index,
+  active,
+}: {
+  index: number;
+  active: boolean;
+}) {
+  const startsWithBreak = usePageStartsWithBreak(index);
+  return (
+    <PageThumb index={index} active={active} removable={startsWithBreak} />
+  );
+});
+
 export function PageThumbnails() {
-  const pageIds = usePageIds();
-  const activePageId = useActiveTab((tab) => tab?.activePageId ?? '');
+  const pageCount = useComputedPageCount();
+  const activePageIndex = useActiveTab((tab) => tab?.activePageIndex ?? 0);
 
   return (
-    <div className='border-t border-white/10 pt-5'>
-      <h2 className='mb-3 text-[15px] font-semibold'>Pages</h2>
+    <div className="border-t border-white/10 pt-5">
+      <h2 className="mb-3 text-[15px] font-semibold">Pages</h2>
 
-      <div className='flex flex-col gap-3'>
-        {pageIds.map((pageId, index) => (
-          <PageThumb
-            key={pageId}
-            pageId={pageId}
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: pageCount }, (_, index) => (
+          <PageThumbWithBreak
+            key={index}
             index={index}
-            active={pageId === activePageId}
-            removable={pageIds.length > 1}
+            active={index === activePageIndex}
           />
         ))}
       </div>
 
       <button
-        type='button'
-        className='mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 px-3 py-2.5 text-[13px] font-medium text-white transition hover:bg-white/10'
-        onClick={() => useEditorStore.getState().addPage()}
+        type="button"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 px-3 py-2.5 text-[13px] font-medium text-white transition hover:bg-white/10"
+        onClick={() => useEditorStore.getState().insertPageBreak()}
       >
         <Plus size={15} /> Add Page
       </button>

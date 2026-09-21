@@ -7,28 +7,24 @@ import { immer } from 'zustand/middleware/immer';
 import { clone } from '@/lib/clone';
 import {
   createDefaultDocument,
-  createEmptyPage,
   createImageBlock,
+  createPageBreakBlock,
   createShapeBlock,
   createTableBlock,
   createTextBlock,
 } from '@/lib/defaultTemplate';
 import { createId } from '@/lib/ids';
-import {
-  readTemplateStore,
-  writeTemplateStore,
-} from '@/lib/storage';
+import { paginateWithCache } from '@/lib/pagination';
+import { readTemplateStore, writeTemplateStore } from '@/lib/storage';
 import type {
   Block,
   BlockKind,
   CellStyleOverride,
   DocumentModel,
-  Page,
-  PageLayoutEntry,
+  PageFragment,
   SavedTemplate,
   Tab,
   TableBlock,
-  TableRow,
   TableStyle,
   TextAlign,
   TextBlock,
@@ -67,11 +63,14 @@ export interface EditorState {
   setActiveTab: (tabId: string) => void;
   setProjectName: (name: string) => void;
 
-  addPage: () => void;
-  setActivePage: (pageId: string) => void;
-  removePage: (pageId: string) => void;
-
-  applyPageLayout: (layouts: PageLayoutEntry[][]) => void;
+  /** "Add Page": inserts a manual page-break block at the selection (or the
+   *  end of the active page's content) and lands on the page it opens. */
+  insertPageBreak: () => void;
+  setActivePage: (pageIndex: number) => void;
+  /** Removes the page break that starts the given computed page (if any). */
+  removePageBreak: (pageIndex: number) => void;
+  /** Measured-pagination update: derived cache only, never undoable. */
+  setComputedPages: (pages: PageFragment[][]) => void;
 
   addBlock: (kind: BlockKind) => void;
   removeBlock: (blockId: string) => void;
@@ -133,7 +132,7 @@ export interface EditorState {
   undo: () => void;
   redo: () => void;
 
-  saveActiveTab: () => void;
+  saveActiveTab: (willBeDefaultTemplate?: boolean) => void;
   openTemplate: (templateId: string) => void;
   deleteTemplate: (templateId: string) => void;
   renameTemplate: (templateId: string, name: string) => void;
@@ -145,14 +144,13 @@ export interface EditorState {
 }
 
 function createTab(document: DocumentModel, title: string): Tab {
-  const firstPage = document.pages[0];
-
   return {
     id: createId('tab'),
     title,
     templateId: null,
     document,
-    activePageId: firstPage ? firstPage.id : '',
+    activePageIndex: 0,
+    computedPages: paginateWithCache(document.blocks),
     selection: { blockId: null, rowId: null, columnId: null },
     past: [],
     future: [],
@@ -168,16 +166,40 @@ function getTab(state: Draft): Tab | undefined {
   return state.tabs.find((tab) => tab.id === state.activeTabId);
 }
 
-function getPage(tab: Tab): Page | undefined {
-  return tab.document.pages.find((page) => page.id === tab.activePageId);
+function getBlock(tab: Tab, blockId: string): Block | undefined {
+  return tab.document.blocks.find((block) => block.id === blockId);
 }
 
-function getBlock(tab: Tab, blockId: string): Block | undefined {
-  for (const page of tab.document.pages) {
-    const found = page.blocks.find((block) => block.id === blockId);
-    if (found) return found;
+function repaginate(tab: Tab): void {
+  tab.computedPages = paginateWithCache(tab.document.blocks);
+}
+
+/** Keeps activePageIndex inside the computed page list. */
+function clampActivePage(tab: Tab): void {
+  const last = tab.computedPages.length - 1;
+  if (tab.activePageIndex > last) tab.activePageIndex = Math.max(0, last);
+}
+
+/** The page a fragment list puts the given block on, or -1. */
+function pageIndexOfBlock(pages: PageFragment[][], blockId: string): number {
+  return pages.findIndex((page) =>
+    page.some((fragment) => fragment.blockId === blockId),
+  );
+}
+
+/** Index just past the active page's last content block (its trailing page
+ *  break excluded), for "insert at end of page" semantics. */
+function endOfActivePageInsertIndex(tab: Tab): number {
+  const blocks = tab.document.blocks;
+  const fragments = tab.computedPages[tab.activePageIndex] ?? [];
+  for (let i = fragments.length - 1; i >= 0; i -= 1) {
+    const id = fragments[i]?.blockId;
+    const block = id ? blocks.find((item) => item.id === id) : undefined;
+    if (block && block.kind !== 'pagebreak') {
+      return blocks.indexOf(block) + 1;
+    }
   }
-  return undefined;
+  return blocks.length;
 }
 
 function getTextBlock(tab: Tab, blockId: string): TextBlock | undefined {
@@ -191,13 +213,6 @@ function getTableBlock(tab: Tab, blockId: string): TableBlock | undefined {
 }
 
 function snapshot(tab: Tab): void {
-  // Immer treats state as immutable between set() calls, and every caller
-  // snapshots before mutating, so the base of the draft is exactly the pre-edit
-  // document. Keeping it by reference makes a snapshot O(1) instead of a deep
-  // clone of the whole document, and history entries structurally share every
-  // branch the edit did not touch. original() only misses if the document was
-  // reassigned earlier in the same action (no action does that), in which case
-  // current() still yields a plain, never-again-mutated object.
   tab.past.push(original(tab.document) ?? current(tab.document));
   if (tab.past.length > HISTORY_LIMIT) tab.past.shift();
   tab.future = [];
@@ -208,11 +223,6 @@ function markDirty(tab: Tab): void {
   tab.dirty = true;
 }
 
-/**
- * True when at least one patch key would actually change the target. Property
- * actions snapshot only on real mutations, so a no-op commit (re-typing the
- * same value, closing a colour picker unchanged) never pollutes undo history.
- */
 function patchChanged<T extends object>(target: T, patch: Partial<T>): boolean {
   for (const [key, value] of Object.entries(patch)) {
     if (value !== undefined && target[key as keyof T] !== value) return true;
@@ -261,6 +271,8 @@ function newBlock(kind: BlockKind): Block {
       return createImageBlock();
     case 'shape':
       return createShapeBlock();
+    case 'pagebreak':
+      return createPageBreakBlock();
   }
 }
 
@@ -298,7 +310,8 @@ export const useEditorStore = create<EditorState>()(
         tab.document = clone(restored.document);
         tab.templateId = restored.id;
         tab.title = restored.name;
-        tab.activePageId = restored.document.pages[0]?.id ?? '';
+        tab.activePageIndex = 0;
+        tab.computedPages = paginateWithCache(tab.document.blocks);
         tab.past = [];
         tab.future = [];
         tab.dirty = false;
@@ -351,163 +364,97 @@ export const useEditorStore = create<EditorState>()(
         markDirty(tab);
       }),
 
-    addPage: () =>
+    insertPageBreak: () =>
       set((state) => {
         const tab = getTab(state);
         if (!tab) return;
         snapshot(tab);
-        const page = createEmptyPage();
-        tab.document.pages.push(page);
-        tab.activePageId = page.id;
-      }),
-
-    setActivePage: (pageId) =>
-      set((state) => {
-        const tab = getTab(state);
-        if (!tab) return;
-        tab.activePageId = pageId;
+        const pageBreak = createPageBreakBlock();
+        const blocks = tab.document.blocks;
+        const selectedId = tab.selection.blockId;
+        const selectedIndex = selectedId
+          ? blocks.findIndex((item) => item.id === selectedId)
+          : -1;
+        // At the selection when one exists; otherwise at the end of the
+        // active page's content, so "Add Page" opens a page right after it.
+        const insertAt =
+          selectedIndex === -1
+            ? endOfActivePageInsertIndex(tab)
+            : selectedIndex + 1;
+        blocks.splice(insertAt, 0, pageBreak);
+        repaginate(tab);
+        // Land on the page the break opens.
+        const breakPage = pageIndexOfBlock(tab.computedPages, pageBreak.id);
+        tab.activePageIndex =
+          breakPage === -1
+            ? tab.activePageIndex
+            : Math.min(breakPage + 1, tab.computedPages.length - 1);
         tab.selection = { blockId: null, rowId: null, columnId: null };
       }),
 
-    removePage: (pageId) =>
+    setActivePage: (pageIndex) =>
       set((state) => {
         const tab = getTab(state);
-        if (!tab || tab.document.pages.length === 1) return;
-        snapshot(tab);
-        tab.document.pages = tab.document.pages.filter(
-          (page) => page.id !== pageId,
-        );
-        if (tab.activePageId === pageId) {
-          tab.activePageId = tab.document.pages[0]?.id ?? '';
-        }
+        if (!tab) return;
+        const last = tab.computedPages.length - 1;
+        tab.activePageIndex = Math.max(0, Math.min(pageIndex, last));
+        tab.selection = { blockId: null, rowId: null, columnId: null };
       }),
 
-    applyPageLayout: (layouts) =>
+    removePageBreak: (pageIndex) =>
       set((state) => {
         const tab = getTab(state);
-        if (!tab || layouts.length === 0) return;
+        if (!tab || pageIndex <= 0) return;
+        // The break that starts this page is the trailing block of the page
+        // before it; removing it lets the content flow back together.
+        const previousPage = tab.computedPages[pageIndex - 1];
+        const lastId = previousPage?.[previousPage.length - 1]?.blockId;
+        if (!lastId) return;
+        const block = tab.document.blocks.find((item) => item.id === lastId);
+        if (!block || block.kind !== 'pagebreak') return;
 
-        const blocksById = new Map<string, Block>();
-        for (const page of tab.document.pages) {
-          for (const block of page.blocks) blocksById.set(block.id, block);
-        }
+        snapshot(tab);
+        tab.document.blocks = tab.document.blocks.filter(
+          (item) => item.id !== lastId,
+        );
+        repaginate(tab);
+        clampActivePage(tab);
+      }),
 
-        // Plain snapshots for cloning continuation chunks: immer drafts cannot
-        // be structured-cloned, and later chunks need the original row list
-        // after the first chunk has mutated its rows.
-        const originals = new Map<string, Block>();
-        const snapshotOf = (block: Block): Block => {
-          const existing = originals.get(block.id);
-          if (existing) return existing;
-          const plain = clone(current(block));
-          originals.set(block.id, plain);
-          return plain;
-        };
-
-        const placed = new Set<string>();
-        const placedRowCount = new Map<string, number>();
-        const previousPageIds = tab.document.pages.map((page) => page.id);
-        const nextPages: Page[] = [];
-
-        for (const [index, entries] of layouts.entries()) {
-          const blocks: Block[] = [];
-          for (const entry of entries) {
-            const source = blocksById.get(entry.blockId);
-            if (!source) continue;
-
-            const tableRows = (ids: readonly string[]): TableRow[] => {
-              const original = snapshotOf(source);
-              if (original.kind !== 'table') return [];
-              const rows: TableRow[] = [];
-              for (const rowId of ids) {
-                const row = original.rows.find((item) => item.id === rowId);
-                if (row) rows.push(clone(row));
-              }
-              return rows;
-            };
-
-            if (entry.rowIds === undefined || source.kind !== 'table') {
-              if (placed.has(source.id)) continue;
-              placed.add(source.id);
-              snapshotOf(source);
-              if (source.kind === 'table') {
-                placedRowCount.set(source.id, source.rows.length);
-              }
-              blocks.push(source);
-              continue;
-            }
-
-            const rows = tableRows(entry.rowIds);
-            if (!placed.has(source.id)) {
-              placed.add(source.id);
-              source.rows = rows;
-              source.startNumber = 0;
-              placedRowCount.set(source.id, rows.length);
-              blocks.push(source);
-            } else {
-              const original = snapshotOf(source);
-              if (original.kind !== 'table') continue;
-              const chunk = clone(original);
-              chunk.id = createId('block');
-              chunk.rows = rows;
-              chunk.startNumber =
-                placedRowCount.get(original.id) ?? original.rows.length;
-              placedRowCount.set(
-                original.id,
-                (chunk.startNumber ?? 0) + rows.length,
-              );
-              blocks.push(chunk);
-            }
-          }
-          nextPages.push({
-            id: previousPageIds[index] ?? createId('page'),
-            blocks,
-          });
-        }
-
-        // A re-split mints fresh ids for continuation chunks; keep a cell
-        // selection pointing at the chunk that now owns the selected row
-        // (row ids are stable across splits).
-        const selectedRowId = tab.selection.rowId;
-        if (selectedRowId) {
-          const owner = nextPages
-            .flatMap((page) => page.blocks)
-            .find(
-              (block) =>
-                block.kind === 'table' &&
-                block.rows.some((row) => row.id === selectedRowId),
-            );
-          if (owner && owner.id !== tab.selection.blockId) {
-            tab.selection = { ...tab.selection, blockId: owner.id };
-          }
-        }
-
-        tab.document.pages = nextPages;
-        if (!nextPages.some((page) => page.id === tab.activePageId)) {
-          tab.activePageId = nextPages[0]?.id ?? '';
-        }
-        tab.dirty = true;
+    setComputedPages: (pages) =>
+      set((state) => {
+        const tab = getTab(state);
+        if (!tab || pages.length === 0) return;
+        // Derived state: no snapshot, no dirty flag — pagination is re-derived
+        // from measurements, deliberately outside undo (as it always was).
+        tab.computedPages = pages;
+        clampActivePage(tab);
       }),
 
     addBlock: (kind) =>
       set((state) => {
         const tab = getTab(state);
         if (!tab) return;
-        const page = getPage(tab);
-        if (!page) return;
 
         snapshot(tab);
         const block = newBlock(kind);
-        const selectedIndex = page.blocks.findIndex(
+        const blocks = tab.document.blocks;
+        const selectedIndex = blocks.findIndex(
           (item) => item.id === tab.selection.blockId,
         );
 
         if (selectedIndex === -1) {
-          page.blocks.push(block);
+          // No selection: append at the end of the active page's content.
+          const insertAt = endOfActivePageInsertIndex(tab);
+          blocks.splice(insertAt, 0, block);
         } else {
-          page.blocks.splice(selectedIndex + 1, 0, block);
+          blocks.splice(selectedIndex + 1, 0, block);
         }
 
+        repaginate(tab);
+        // Keep the page rail in sync with where the new block landed.
+        const pageIndex = pageIndexOfBlock(tab.computedPages, block.id);
+        if (pageIndex !== -1) tab.activePageIndex = pageIndex;
         tab.selection = { blockId: block.id, rowId: null, columnId: null };
       }),
 
@@ -517,9 +464,11 @@ export const useEditorStore = create<EditorState>()(
         if (!tab) return;
         snapshot(tab);
 
-        for (const page of tab.document.pages) {
-          page.blocks = page.blocks.filter((block) => block.id !== blockId);
-        }
+        tab.document.blocks = tab.document.blocks.filter(
+          (block) => block.id !== blockId,
+        );
+        repaginate(tab);
+        clampActivePage(tab);
 
         if (tab.selection.blockId === blockId) {
           tab.selection = { blockId: null, rowId: null, columnId: null };
@@ -530,11 +479,7 @@ export const useEditorStore = create<EditorState>()(
       set((state) => {
         const tab = getTab(state);
         if (!tab) return;
-        // No-op only when already focused at block level. Clicking anywhere in
-        // an already-selected block (title, header, padding) collapses a
-        // focused cell back to block level — the nested-focus exit path.
-        // Cell clicks still re-focus afterwards: pointerdown (this action)
-        // runs before the input focus event (selectCell).
+
         if (
           tab.selection.blockId === blockId &&
           tab.selection.rowId === null &&
@@ -543,13 +488,10 @@ export const useEditorStore = create<EditorState>()(
           return;
         }
         tab.selection = { blockId, rowId: null, columnId: null };
-        // Keep the page rail in sync when a block on another (visible) page is
-        // selected directly on the canvas.
+
         if (blockId) {
-          const owner = tab.document.pages.find((page) =>
-            page.blocks.some((block) => block.id === blockId),
-          );
-          if (owner) tab.activePageId = owner.id;
+          const pageIndex = pageIndexOfBlock(tab.computedPages, blockId);
+          if (pageIndex !== -1) tab.activePageIndex = pageIndex;
         }
       }),
 
@@ -557,15 +499,15 @@ export const useEditorStore = create<EditorState>()(
       set((state) => {
         const tab = getTab(state);
         if (!tab) return;
-        const page = getPage(tab);
-        if (!page) return;
 
-        const from = page.blocks.findIndex((block) => block.id === activeId);
-        const to = page.blocks.findIndex((block) => block.id === overId);
+        const blocks = tab.document.blocks;
+        const from = blocks.findIndex((block) => block.id === activeId);
+        const to = blocks.findIndex((block) => block.id === overId);
         if (from === -1 || to === -1 || from === to) return;
 
         snapshot(tab);
-        page.blocks = move(page.blocks, from, to);
+        tab.document.blocks = move(blocks, from, to);
+        repaginate(tab);
       }),
 
     updateBlockLayout: (blockId, patch) =>
@@ -822,10 +764,8 @@ export const useEditorStore = create<EditorState>()(
         if (!tab) return;
         tab.selection = { blockId, rowId, columnId };
         // Keep the page rail in sync when a cell on another page is focused.
-        const owner = tab.document.pages.find((page) =>
-          page.blocks.some((block) => block.id === blockId),
-        );
-        if (owner) tab.activePageId = owner.id;
+        const pageIndex = pageIndexOfBlock(tab.computedPages, blockId);
+        if (pageIndex !== -1) tab.activePageIndex = pageIndex;
       }),
 
     updateImage: (blockId, patch) =>
@@ -890,10 +830,8 @@ export const useEditorStore = create<EditorState>()(
         // reassigned in this action, so original() is the pre-undo state.
         tab.future.unshift(original(tab.document) ?? current(tab.document));
         tab.document = previous;
-        tab.activePageId =
-          previous.pages.find((page) => page.id === tab.activePageId)?.id ??
-          previous.pages[0]?.id ??
-          '';
+        repaginate(tab);
+        clampActivePage(tab);
         tab.selection = { blockId: null, rowId: null, columnId: null };
         tab.dirty = true;
       }),
@@ -908,15 +846,13 @@ export const useEditorStore = create<EditorState>()(
         // Same reference-sharing as undo(): original() is the pre-redo state.
         tab.past.push(original(tab.document) ?? current(tab.document));
         tab.document = next;
-        tab.activePageId =
-          next.pages.find((page) => page.id === tab.activePageId)?.id ??
-          next.pages[0]?.id ??
-          '';
+        repaginate(tab);
+        clampActivePage(tab);
         tab.selection = { blockId: null, rowId: null, columnId: null };
         tab.dirty = true;
       }),
 
-    saveActiveTab: () =>
+    saveActiveTab: (willBeDefaultTemplate = false) =>
       set((state) => {
         const tab = getTab(state);
         if (!tab) return;
@@ -937,6 +873,9 @@ export const useEditorStore = create<EditorState>()(
             created: false,
             seq,
           };
+          if (willBeDefaultTemplate) {
+            state.defaultTemplateId = existing.id;
+          }
         } else {
           const name = nextTemplateName(state.templates);
           const template: SavedTemplate = {
@@ -960,6 +899,9 @@ export const useEditorStore = create<EditorState>()(
             created: true,
             seq,
           };
+          if (willBeDefaultTemplate) {
+            state.defaultTemplateId = template.id;
+          }
         }
 
         tab.dirty = false;

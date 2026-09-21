@@ -14,6 +14,7 @@ import { useReadOnly } from './readOnly';
 export interface TableRowViewProps {
   blockId: string;
   rowId: string;
+  displayNumber: number;
   columns: TableColumn[];
   style: TableStyle;
   selected: boolean;
@@ -22,6 +23,7 @@ export interface TableRowViewProps {
 function TableRowViewImpl({
   blockId,
   rowId,
+  displayNumber,
   columns,
   style,
   selected,
@@ -54,10 +56,7 @@ function TableRowViewImpl({
 
   return (
     <tr ref={setNodeRef} data-row-id={rowId} style={rowStyle}>
-      {/* The drag-handle cell must be absent in readOnly/PDF — it is the row
-          counterpart to the col/th removed in TableBlockView. Keeping it (even
-          hidden) adds a phantom column that breaks table-layout:fixed. */}
-      {!readOnly && (
+      {!readOnly ? (
         <td className="w-7 align-middle" style={{ borderBottom: cellBorder }}>
           <button
             type="button"
@@ -69,7 +68,7 @@ function TableRowViewImpl({
             <GripVertical size={14} />
           </button>
         </td>
-      )}
+      ) : null}
 
       {columns.map((column) => {
         const override = row.cellStyles?.[column.id];
@@ -83,6 +82,8 @@ function TableRowViewImpl({
           paddingTop: `${style.padding + style.rowSpacing}px`,
           paddingBottom: `${style.padding + style.rowSpacing}px`,
           textAlign: align,
+          verticalAlign: 'middle',
+          lineHeight: 1.4,
           fontSize: `${override?.fontSize ?? style.fontSize}px`,
           fontFamily: FONT_STACKS[fontFamily],
           color: override?.color ?? style.cellColor ?? '#1F2937',
@@ -91,11 +92,9 @@ function TableRowViewImpl({
 
         if (column.role === 'rowNumber') {
           return (
-            <td
-              key={column.id}
-              className="row-number"
-              style={{ ...shared, counterIncrement: 'row-num' }}
-            />
+            <td key={column.id} style={shared}>
+              {displayNumber}
+            </td>
           );
         }
 

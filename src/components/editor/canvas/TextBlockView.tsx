@@ -2,30 +2,50 @@
 
 import { memo, useEffect, useRef } from 'react';
 
+import type { TextFragment } from '@/lib/types';
 import { FONT_STACKS } from '@/lib/types';
 import { useEditorStore } from '@/store/editorStore';
 import { useTextBlock } from '@/store/selectors';
 import { useReadOnly } from './readOnly';
 
-function TextBlockViewImpl({ blockId }: { blockId: string }) {
+function TextBlockViewImpl({
+  blockId,
+  fragment,
+}: {
+  blockId: string;
+  /** Character-range slice when pagination split this block across pages. */
+  fragment?: TextFragment;
+}) {
   const block = useTextBlock(blockId);
   const readOnly = useReadOnly();
   const ref = useRef<HTMLDivElement>(null);
   const touched = useRef(false);
 
   const content = block?.content ?? '';
+  const from = fragment?.from ?? 0;
+  const to = fragment?.to ?? Infinity;
+  const slice = content.slice(from, to);
 
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
     if (document.activeElement === element) return;
-    if (element.innerText === content) return;
-    element.innerText = content;
-  }, [content]);
+
+    element.innerText = slice;
+  }, [slice]);
 
   if (!block) return null;
 
-  const style = {
+  if (fragment && from > 0 && slice === '') return null;
+
+  const commit = (text: string): void => {
+    const merged = fragment
+      ? content.slice(0, from) + text + content.slice(to)
+      : text;
+    useEditorStore.getState().updateTextContent(blockId, merged);
+  };
+
+  const style: React.CSSProperties = {
     fontFamily: FONT_STACKS[block.style.fontFamily],
     fontSize: `${block.style.fontSize}px`,
     fontWeight: Number(block.style.fontWeight),
@@ -33,17 +53,22 @@ function TextBlockViewImpl({ blockId }: { blockId: string }) {
     textAlign: block.style.align,
     lineHeight: block.style.lineHeight,
     letterSpacing: `${block.style.letterSpacing}px`,
-    whiteSpace: 'pre-wrap' as const,
-    wordBreak: 'break-word' as const,
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
   };
 
   if (readOnly) {
-    return <div style={style}>{content}</div>;
+    return (
+      <div data-fragment-from={from} style={style}>
+        {slice}
+      </div>
+    );
   }
 
   return (
     <div
       ref={ref}
+      data-fragment-from={from}
       role="textbox"
       tabIndex={0}
       aria-label="Editable text"
@@ -61,9 +86,7 @@ function TextBlockViewImpl({ blockId }: { blockId: string }) {
         useEditorStore.getState().beginEdit();
       }}
       onBlur={(event) => {
-        useEditorStore
-          .getState()
-          .updateTextContent(blockId, event.currentTarget.innerText);
+        commit(event.currentTarget.innerText);
       }}
     />
   );
