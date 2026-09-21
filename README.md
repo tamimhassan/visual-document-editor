@@ -1,6 +1,6 @@
 # Visual Document Editor (PoC)
 
-**Live Demo:** [https://docgen-2.vercel.app/](https://docgen-2.vercel.app/)
+**Live Demo:** [https://visual-document-editor.vercel.app/](https://visual-document-editor.vercel.app/)
 
 ## Local Setup
 
